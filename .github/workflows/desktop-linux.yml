@@ -1,0 +1,215 @@
+name: Desktop Linux preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Linux preview tag matching DESKTOP_VERSION and DESKTOP_LINUX_PREVIEW'
+        required: true
+        default: desktop-v0.1.7-linux.1
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-linux-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Test and build Linux x86_64
+    if: github.repository == 'Bluesguitartravis-droid/desktop-melee'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
+      preview: ${{ steps.release.outputs.preview }}
+      commit: ${{ steps.release.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate Linux release identity
+        id: release
+        env:
+          REQUESTED_TAG: ${{ inputs.tag }}
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, re, subprocess
+          version = pathlib.Path('DESKTOP_VERSION').read_text().strip()
+          preview = pathlib.Path('DESKTOP_LINUX_PREVIEW').read_text().strip()
+          if not re.fullmatch(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', version):
+              raise SystemExit('DESKTOP_VERSION must be MAJOR.MINOR.PATCH')
+          if not re.fullmatch(r'[1-9][0-9]*', preview):
+              raise SystemExit('DESKTOP_LINUX_PREVIEW must be a positive integer')
+          tag = os.environ['REQUESTED_TAG']
+          if tag != f'desktop-v{version}-linux.{preview}':
+              raise SystemExit('Linux tag must match both version files')
+          commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          old = subprocess.run(['git', 'rev-parse', '--verify', '--quiet', 'refs/tags/' + tag + '^{commit}'],
+                               capture_output=True, text=True)
+          if old.returncode == 0 and old.stdout.strip() != commit:
+              raise SystemExit('Existing release tag points to a different commit')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'tag={tag}\nversion={version}\npreview={preview}\ncommit={commit}\n')
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write(f'MELEE_VERSION={version}\n')
+          PY
+
+      - name: Install native build and test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build pkg-config python3 git \
+            curl zip file desktop-file-utils patchelf squashfs-tools \
+            libssl-dev libcurl4-openssl-dev libusb-1.0-0-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
+            libxfixes-dev libxss-dev libxkbcommon-dev libxtst-dev \
+            libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-randr0-dev \
+            libwayland-dev wayland-protocols libdecor-0-dev \
+            libasound2-dev libpulse-dev libdbus-1-dev libudev-dev \
+            libgl1-mesa-dev libegl1-mesa-dev libgbm-dev mesa-vulkan-drivers \
+            xvfb xauth xcompmgr
+
+      - name: Native game, terrain, Linux launcher and release regressions
+        run: |
+          bash tools/test_desktop_game.sh
+          bash tools/test_desktop_collision.sh
+          bash tools/test_desktop_fighter.sh
+          bash tools/test_desktop_update.sh
+          bash tools/test_desktop_linux_launcher.sh
+          python3 tools/test_desktop_linux_release.py
+          test_output="$(mktemp -d)"
+          trap 'rm -rf "$test_output"' EXIT
+          for test_name in desktop_pixels desktop_window_geometry desktop_wallpaper_geometry desktop_wallpaper_mapping; do
+            g++ -std=c++20 -O2 -Wall -Wextra -Werror -Iextern/aurora/include \
+              "extern/aurora/tests/${test_name}_test.cpp" -o "$test_output/$test_name"
+            "$test_output/$test_name"
+          done
+
+      - name: Build and package Linux application
+        env:
+          BUILD_JOBS: '4'
+          CMAKE_BUILD_PARALLEL_LEVEL: '4'
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: bash tools/build_desktop_linux.sh
+
+      - name: X11 platforms and Vulkan overlay lifecycle
+        env:
+          LP_NUM_THREADS: '2'
+        run: |
+          cmake --build build-linux --target desktop_linux_gpu_smoke --parallel 4
+          lavapipe_icds=(/usr/share/vulkan/icd.d/*lvp*.json)
+          test -f "${lavapipe_icds[0]}" || { echo 'Mesa lavapipe ICD not found' >&2; exit 1; }
+          export VK_DRIVER_FILES="${lavapipe_icds[0]}"
+          export VK_ICD_FILENAMES="${lavapipe_icds[0]}"
+          bash tools/test_desktop_linux.sh --gpu-smoke build-linux/desktop_linux_gpu_smoke resources
+
+      - name: Run actual Linux executables without a disc
+        env:
+          MELEE_BIN: ${{ github.workspace }}/build-linux/melee
+        run: |
+          python3 tools/smoke_test.py --no-disc
+          xvfb-run -a -s '-screen 0 1280x800x24' build-linux/DesktopMelee --smoke-test
+
+      - name: Smoke test the packaged AppImage
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: |
+          dist/linux/Desktop-Melee-Linux-x86_64.AppImage --version
+          xvfb-run -a -s '-screen 0 1280x800x24' \
+            dist/linux/Desktop-Melee-Linux-x86_64.AppImage --smoke-test
+
+      - name: Compare actual AppImage and portable payloads
+        run: |
+          python3 tools/verify_desktop_linux.py \
+            --appimage dist/linux/Desktop-Melee-Linux-x86_64.AppImage \
+            --binary-archive dist/linux/Desktop-Melee-Linux-x86_64.tar.gz
+
+      - name: Package exact source and Linux checksums
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          python3 tools/package_desktop_linux_source.py \
+            --tag "$RELEASE_TAG" \
+            --binary-archive dist/linux/Desktop-Melee-Linux-x86_64.tar.gz \
+            --appimage dist/linux/Desktop-Melee-Linux-x86_64.AppImage \
+            --output-dir dist/linux
+
+      - name: Preserve validated Linux release assets
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: ${{ steps.release.outputs.tag }}
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            dist/linux/Desktop-Melee-Linux-x86_64.AppImage
+            dist/linux/Desktop-Melee-Linux-x86_64.tar.gz
+            dist/linux/Desktop-Melee-Linux-x86_64.manifest.json
+            dist/linux/Desktop-Melee-Linux-Source-${{ steps.release.outputs.version }}.zip
+            dist/linux/Desktop-Melee-Linux-SHA256SUMS
+            dist/linux/LINUX-RELEASE-NOTES.md
+
+  release:
+    name: Publish Linux preview
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ needs.build.outputs.tag }}
+      RELEASE_VERSION: ${{ needs.build.outputs.version }}
+      RELEASE_PREVIEW: ${{ needs.build.outputs.preview }}
+      RELEASE_COMMIT: ${{ needs.build.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ needs.build.outputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4.3.0
+        with:
+          name: ${{ needs.build.outputs.tag }}
+          path: release-files
+
+      - name: Verify and publish the Linux prerelease
+        run: |
+          test "$(git rev-parse HEAD)" = "$RELEASE_COMMIT"
+          test "$RELEASE_TAG" = "desktop-v$(tr -d '\r\n' < DESKTOP_VERSION)-linux.$(tr -d '\r\n' < DESKTOP_LINUX_PREVIEW)"
+          git fetch --force --tags origin
+          if tag_commit="$(git rev-parse --verify --quiet "refs/tags/${RELEASE_TAG}^{commit}")"; then
+            test "$tag_commit" = "$RELEASE_COMMIT"
+          fi
+          cd release-files
+          sha256sum --check Desktop-Melee-Linux-SHA256SUMS
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo '::error::This Linux release already exists. Published assets are never overwritten; inspect an unfinished draft or increase the preview version.'
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" --target "$RELEASE_COMMIT" \
+            --draft --prerelease --latest=false \
+            --title "Desktop Melee ${RELEASE_VERSION} — Linux preview ${RELEASE_PREVIEW}" \
+            --notes-file LINUX-RELEASE-NOTES.md
+          gh release upload "$RELEASE_TAG" \
+            Desktop-Melee-Linux-x86_64.AppImage Desktop-Melee-Linux-x86_64.tar.gz \
+            "Desktop-Melee-Linux-Source-${RELEASE_VERSION}.zip" Desktop-Melee-Linux-SHA256SUMS
+          gh release view "$RELEASE_TAG" --json assets > release-assets.json
+          python3 - <<'PY'
+          import json, os
+          actual = {asset['name'] for asset in json.load(open('release-assets.json'))['assets']}
+          expected = {'Desktop-Melee-Linux-x86_64.AppImage', 'Desktop-Melee-Linux-x86_64.tar.gz',
+                      'Desktop-Melee-Linux-Source-' + os.environ['RELEASE_VERSION'] + '.zip',
+                      'Desktop-Melee-Linux-SHA256SUMS'}
+          if actual != expected:
+              raise SystemExit('Linux release is incomplete; leaving the draft unpublished')
+          PY
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false

@@ -26,6 +26,11 @@ bool aurora_desktop_get_geometry(AuroraDesktopGeometry* geometry);
  * window; disabling restores it. False means the normal window is retained. */
 bool aurora_desktop_enable(bool enabled);
 bool aurora_desktop_active(void);
+/* UI-thread-only host controls. Linux keeps its X11 shortcuts available while
+ * the normal settings window is shown. The message is stable until another
+ * desktop operation; it is intended for an initialization error dialog. */
+bool aurora_desktop_take_settings_request(void);
+const char* aurora_desktop_unavailable_reason(void);
 
 #define AURORA_DESKTOP_MAX_WINDOW_EDGES 32
 

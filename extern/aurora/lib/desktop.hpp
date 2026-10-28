@@ -11,6 +11,8 @@
 namespace aurora::desktop {
 bool active() noexcept;
 bool window_size(AuroraWindowSize& size) noexcept;
+/* Separate XCB shortcut events cannot wake SDL's blocking event wait. */
+bool needs_event_poll() noexcept;
 /* UI thread only. Consumes the newest completed GPU readback, never waits
  * for the GPU. The overlay always lets mouse input pass through. */
 void pump() noexcept;

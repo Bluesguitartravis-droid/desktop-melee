@@ -1,5 +1,45 @@
 # Desktop Melee changes
 
+## 0.1.7 Linux preview 1 — 2026-10-28
+
+First native Linux x86_64 preview, with Steam Deck X11 Desktop Mode as a
+target. It is a separate prerelease; Windows stable remains at 0.1.6.
+
+### Linux desktop and launcher
+
+- Transparent, click-through X11 overlay with a bottom-panel floor and
+  moving platforms on exposed window tops.
+- Native Linux launcher for choosing the disc, fighters, CPU watch mode,
+  stocks and window platforms. It offers explicit windowed play when the
+  desktop overlay is unavailable.
+- Wayland and Gamescope sessions are detected. The initial desktop backend
+  requires a real composited X11 desktop; Xwayland alone is insufficient.
+- Steam Deck guidance covers the X11 desktop-session selection, Steam Input
+  and a native Non-Steam Game entry without Proton.
+- Linux wallpaper terrain is not enabled in this first preview.
+
+### Packaging and updates
+
+- One AppImage bundles the application and its runtime dependencies; a
+  complete portable tarball is also available. Installation does not need
+  administrator access or changes to SteamOS's read-only system.
+- The launcher checks for compatible Linux previews and stable Linux
+  releases in the background, without selecting a Windows asset.
+- Preferences, saved games and caches live in stable per-user locations so
+  replacing the AppImage preserves them.
+- The Linux workflow produces exact-commit source, SHA-256 checksums and
+  build manifests. Linux preview tags are excluded from the Windows release
+  workflow and do not become the Windows stable update.
+
+### Verification and limits
+
+Regression checks exercise native collision, update metadata and release
+provenance. The X11 backend is exercised in a virtual composited display;
+a software-Vulkan smoke check covers GPU readback, overlay pause/resume
+and shutdown. Disc-free smoke checks run the real Linux executables. Steam Deck
+hardware, actual game performance, controller mappings, battery use and
+suspend/resume still require device testing.
+
 ## 0.1.6 — 2026-10-28
 
 First GitHub release of this Windows desktop fork.

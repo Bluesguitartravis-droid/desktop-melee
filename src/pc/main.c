@@ -540,7 +540,11 @@ MELEE_EXPORT int main(int argc, char* argv[]) {
 
     if (pc_desktop_requested()) {
         SDL_setenv_unsafe("MELEE_BOOT_SCENE", "vs", 1);
-        SDL_setenv_unsafe("MELEE_WINDOW_TITLE", "Desktop Melee - Windows Preview 6", 1);
+#if defined(__linux__) && !defined(__ANDROID__)
+        SDL_setenv_unsafe("MELEE_WINDOW_TITLE", "Desktop Melee - Linux Preview", 0);
+#else
+        SDL_setenv_unsafe("MELEE_WINDOW_TITLE", "Desktop Melee", 0);
+#endif
     }
 
     /* RmlUi resolves a document's relative assets (the launcher's art under launcher/)

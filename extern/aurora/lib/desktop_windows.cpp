@@ -17,7 +17,12 @@
 #endif
 #include <windows.h>
 #include <dwmapi.h>
+#endif
+#ifdef AURORA_DESKTOP_X11
+#include "desktop_linux_x11.hpp"
+#endif
 
+#if defined(_WIN32) || defined(AURORA_DESKTOP_X11)
 namespace {
 namespace geometry = aurora::desktop::window_geometry;
 using Clock = std::chrono::steady_clock;
@@ -29,6 +34,7 @@ bool have_snapshot = false;
 std::vector<AuroraDesktopWindowEdge> snapshot;
 std::vector<geometry::Window> window_snapshot;
 
+#ifdef _WIN32
 /* GetWindowRect is DPI-virtualized; DWM's visible bounds are already physical.
  * Keep the fallback in the same coordinate space without changing SDL's
  * process-wide DPI policy. */
@@ -103,12 +109,17 @@ std::vector<geometry::Window> enumerate_windows(const AuroraDesktopGeometry& des
   }
   return windows;
 }
+#elif defined(AURORA_DESKTOP_X11)
+std::vector<geometry::Window> enumerate_windows(const AuroraDesktopGeometry& desktop) {
+  return aurora::desktop::linux_x11::enumerate_windows(desktop);
+}
+#endif
 } // namespace
 #endif
 
 std::span<const aurora::desktop::window_geometry::Window>
 aurora::desktop::windows::current_windows() {
-#ifdef _WIN32
+#if defined(_WIN32) || defined(AURORA_DESKTOP_X11)
   const char* desktop_mode = std::getenv("MELEE_DESKTOP");
   if (!desktop_mode || std::strcmp(desktop_mode, "1") != 0) {
     snapshot.clear();
@@ -139,7 +150,7 @@ aurora::desktop::windows::current_windows() {
 
 extern "C" uint32_t aurora_desktop_get_window_edges(AuroraDesktopWindowEdge* edges, uint32_t capacity) {
   if (!edges || capacity == 0) return 0;
-#ifdef _WIN32
+#if defined(_WIN32) || defined(AURORA_DESKTOP_X11)
   const char* setting = std::getenv("MELEE_DESKTOP_WINDOWS");
   if (setting && std::strcmp(setting, "0") == 0) return 0;
   aurora::desktop::windows::current_windows();

@@ -318,7 +318,12 @@ const AuroraEvent* poll_events() {
   gamepad::set_mouse_scroll(0, 0);
   if (is_paused()) {
     ZoneScopedN("SDL_WaitEvent (paused)");
-    if (SDL_WaitEvent(&event)) {
+    if (desktop::needs_event_poll()) {
+      /* Linux global shortcuts arrive on a separate XCB connection. A
+       * bounded wait keeps pause/resume and emergency quit responsive even
+       * when the settings window has lost focus or has been minimized. */
+      if (SDL_WaitEventTimeout(&event, 50)) process_event(event);
+    } else if (SDL_WaitEvent(&event)) {
       process_event(event);
     } else {
       Log.warn("SDL_WaitEvent failed: {}", SDL_GetError());

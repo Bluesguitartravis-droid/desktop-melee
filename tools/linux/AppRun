@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+desktop_melee_dir="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+export LD_LIBRARY_PATH="${desktop_melee_dir}/usr/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+exec "${desktop_melee_dir}/usr/bin/DesktopMelee" "$@"

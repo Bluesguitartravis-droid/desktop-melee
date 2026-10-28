@@ -23,8 +23,16 @@ bool pc_is_portable(void) {
 }
 
 char* pc_get_pref_path(void) {
-    if (!pc_is_portable())
+    if (!pc_is_portable()) {
+#if defined(__linux__) && !defined(__ANDROID__) && defined(DESKTOP_MELEE_BUILD)
+        /* AppImages are read-only. Keep this fork's saves, config and caches
+         * in a stable per-user location across app updates, including when
+         * the Linux launcher starts an ordinary windowed match. */
+        return SDL_GetPrefPath(NULL, "DesktopMelee");
+#else
         return SDL_GetPrefPath(NULL, "melee-pc");
+#endif
+    }
     char* path = NULL;
     SDL_asprintf(&path, "%suser/", SDL_GetBasePath());
     if (path && !SDL_CreateDirectory(path)) {

@@ -299,7 +299,8 @@ target_compile_options(melee PRIVATE
         ${MELEE_FP_FLAGS}
         $<$<AND:$<COMPILE_LANGUAGE:C>,$<NOT:$<BOOL:${WIN32}>>,$<NOT:$<BOOL:${ANDROID}>>,$<NOT:$<BOOL:${APPLE}>>>:-fno-pie>)
 target_link_libraries(melee PRIVATE melee_game aurora::main ${MELEE_CRYPTO_LIBS} ${MELEE_NETWORK_LIBS})
-target_compile_definitions(melee PRIVATE DESKTOP_MELEE_BUILD=1)
+target_compile_definitions(melee PRIVATE DESKTOP_MELEE_BUILD=1
+        DESKTOP_MELEE_VERSION="${DESKTOP_MELEE_VERSION}")
 
 if (IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
     target_link_libraries(melee PRIVATE
@@ -439,6 +440,28 @@ if (WIN32)
     if (MINGW)
         target_link_options(DesktopMelee PRIVATE -municode -static -static-libstdc++ -static-libgcc)
     endif ()
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT ANDROID AND
+        CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/DESKTOP_LINUX_PREVIEW")
+    file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/DESKTOP_LINUX_PREVIEW"
+        DESKTOP_MELEE_LINUX_PREVIEW LIMIT_COUNT 1)
+    if (NOT DESKTOP_MELEE_LINUX_PREVIEW MATCHES "^[1-9][0-9]*$")
+        message(FATAL_ERROR "DESKTOP_LINUX_PREVIEW must be a positive integer")
+    endif ()
+    find_package(CURL REQUIRED)
+    find_package(Threads REQUIRED)
+    add_executable(DesktopMelee tools/linux/desktop_launcher.cpp tools/linux/desktop_update.cpp)
+    target_include_directories(DesktopMelee PRIVATE tools/linux tools/windows)
+    target_compile_definitions(DesktopMelee PRIVATE
+        DESKTOP_MELEE_VERSION="${DESKTOP_MELEE_VERSION}"
+        DESKTOP_MELEE_LINUX_PREVIEW=${DESKTOP_MELEE_LINUX_PREVIEW})
+    target_link_libraries(DesktopMelee PRIVATE imgui imgui_backends
+        ${AURORA_SDL3_TARGET} CURL::libcurl Threads::Threads)
+    add_executable(desktop_linux_gpu_smoke EXCLUDE_FROM_ALL
+        extern/aurora/tests/desktop_linux_gpu_smoke.cpp)
+    target_link_libraries(desktop_linux_gpu_smoke PRIVATE
+        $<LINK_GROUP:RESCAN,aurora::gx,aurora::vi,aurora::core> aurora::main)
 endif ()
 if (IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
     set_target_properties(melee PROPERTIES

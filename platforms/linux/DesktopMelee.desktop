@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Desktop Melee
+Comment=Melee over your X11 desktop, with visible windows as platforms
+Exec=DesktopMelee
+Icon=DesktopMelee
+Terminal=false
+Categories=Game;
+StartupWMClass=Desktop Melee

@@ -2,13 +2,13 @@ name: Desktop Windows release
 
 on:
   push:
-    tags: ['desktop-v*']
+    tags: ['desktop-v*', '!desktop-v*-linux.*']
   workflow_dispatch:
     inputs:
       tag:
         description: 'Release tag; must match DESKTOP_VERSION in the selected ref'
         required: true
-        default: desktop-v0.1.6
+        default: desktop-v0.1.7
         type: string
 
 permissions:

@@ -7,6 +7,11 @@
 #include <aurora/desktop.h>
 #include <SDL3/SDL.h>
 
+namespace {
+bool initialized;
+bool presentation_failed;
+}
+
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -28,8 +33,6 @@ HWND controls_window;
 NOTIFYICONDATAW tray{};
 bool registered_hotkey;
 bool toggle_requested;
-bool initialized;
-bool presentation_failed;
 UINT taskbar_created;
 
 void add_tray_icon() {
@@ -98,7 +101,8 @@ extern "C" bool pc_desktop_host_init(SDL_Window* window) {
     if (!pc_desktop_requested())
         return true;
 #if defined(_WIN32)
-    pc_log_line("desktop: Windows preview 6 - 0.1.6 - GitHub startup updates, wallpaper contours and taskbar collision correction");
+    pc_log_line("desktop: Windows - %s - GitHub startup updates, wallpaper contours and taskbar collision correction",
+        DESKTOP_MELEE_VERSION);
     AuroraDesktopGeometry geometry{};
     if (!aurora_desktop_get_geometry(&geometry) || !geometry.width || !geometry.height) {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Desktop Melee",
@@ -129,9 +133,26 @@ extern "C" bool pc_desktop_host_init(SDL_Window* window) {
         geometry.platform_left, geometry.platform_top,
         geometry.platform_right, geometry.platform_bottom);
     return true;
+#elif defined(__linux__) && !defined(__ANDROID__)
+    AuroraDesktopGeometry geometry{};
+    if (!aurora_desktop_get_geometry(&geometry) || !geometry.width || !geometry.height) {
+        const char* reason = aurora_desktop_unavailable_reason();
+        pc_log_line("desktop: Linux overlay unavailable: %s", reason);
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Desktop Melee",
+            reason, window);
+        return false;
+    }
+    initialized = true;
+    pc_log_line("desktop: Linux X11 preview - %s", DESKTOP_MELEE_VERSION);
+    pc_log_line("desktop: primary monitor %ux%u at %d,%d, panel (%d,%d)-(%d,%d)",
+        geometry.width, geometry.height, geometry.screen_x, geometry.screen_y,
+        geometry.platform_left, geometry.platform_top,
+        geometry.platform_right, geometry.platform_bottom);
+    return true;
 #else
     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Desktop Melee",
-        "This desktop-overlay build targets Windows. Regular melee-pc mode remains available.", window);
+        "Desktop overlays are supported on Windows and X11 Linux desktops. "
+        "Regular windowed mode remains available on this platform.", window);
     return false;
 #endif
 }
@@ -139,15 +160,19 @@ extern "C" bool pc_desktop_host_init(SDL_Window* window) {
 extern "C" void pc_desktop_host_tick(void) {
     if (!pc_desktop_requested())
         return;
-#if defined(_WIN32)
     if (!initialized)
         return;
+#if defined(_WIN32)
     /* SDL pumps this thread's native windows too. Consume commands here so
      * no menu or renderer mutation occurs inside a window-message callback. */
     if (toggle_requested) {
         toggle_requested = false;
         pc_menu_toggle();
     }
+#elif defined(__linux__) && !defined(__ANDROID__)
+    if (aurora_desktop_take_settings_request())
+        pc_menu_toggle();
+#endif
     const bool wanted = pc_desktop_match_active() && !pc_menu_is_open() && !pc_exit_requested;
     if (wanted != aurora_desktop_active() && !presentation_failed) {
         if (!aurora_desktop_enable(wanted)) {
@@ -155,19 +180,18 @@ extern "C" void pc_desktop_host_tick(void) {
             aurora_desktop_enable(false);
             pc_log_line("desktop: transparent presentation failed; restored the ordinary game window");
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Desktop Melee",
-                "Windows could not start the transparent overlay. The regular game window "
+                "The desktop compositor could not start the transparent overlay. The regular game window "
                 "has been restored. Close it to exit; the log contains the graphics error.", nullptr);
         }
     }
-#endif
 }
 
 extern "C" void pc_desktop_host_shutdown(void) {
-#if defined(_WIN32)
     if (!initialized)
         return;
     initialized = false;
     aurora_desktop_enable(false);
+#if defined(_WIN32)
     Shell_NotifyIconW(NIM_DELETE, &tray);
     if (registered_hotkey)
         UnregisterHotKey(controls_window, kSettingsHotkey);

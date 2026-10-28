@@ -7,6 +7,7 @@ __pycache__/
 # Internal working notes stay local; only the screenshots are published.
 docs/*
 !docs/DESKTOP_MELEE.md
+!docs/DESKTOP_LINUX.md
 !docs/screenshots/
 !docs/CODING_STYLE.md
 !docs/netcode-plan.md

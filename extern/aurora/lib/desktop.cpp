@@ -10,6 +10,7 @@
 #include <memory>
 #include <mutex>
 #include <vector>
+#include <utility>
 
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_hints.h>
@@ -21,16 +22,25 @@
 #endif
 #include <windows.h>
 #include <shellapi.h>
+#endif
+
+#if defined(AURORA_ENABLE_GX) && (defined(_WIN32) || defined(AURORA_DESKTOP_X11))
+#define AURORA_DESKTOP_NATIVE 1
 #include "gfx/frame.hpp"
 #include "webgpu/gpu.hpp"
+#endif
+#ifdef AURORA_DESKTOP_X11
+#include "desktop_linux_x11.hpp"
 #endif
 
 namespace aurora::desktop {
 namespace {
 Module Log("aurora::desktop");
 std::atomic_bool g_active{false};
+bool g_settingsRequested = false;
 
-#if defined(_WIN32) && defined(AURORA_ENABLE_GX)
+#if defined(AURORA_DESKTOP_NATIVE)
+#ifdef _WIN32
 constexpr wchar_t WindowClass[] = L"DesktopMeleeLayeredOverlay";
 constexpr int ExitHotkey = 0x4D45;
 constexpr UINT EmergencyExitMessage = WM_APP + 47;
@@ -41,6 +51,7 @@ HDC g_memoryDC = nullptr;
 HBITMAP g_bitmap = nullptr;
 HGDIOBJ g_previousBitmap = nullptr;
 uint8_t* g_bitmapBytes = nullptr;
+#endif
 AuroraDesktopGeometry g_geometry{};
 bool g_geometryReady = false;
 bool g_oldPauseOnFocusLost = false;
@@ -83,6 +94,7 @@ void request_quit() {
   SDL_PushEvent(&event);
 }
 
+#ifdef _WIN32
 LRESULT CALLBACK overlay_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
   switch (msg) {
   case WM_NCHITTEST:
@@ -166,6 +178,10 @@ bool query_geometry(AuroraDesktopGeometry& out) {
   return true;
 }
 
+#elif defined(AURORA_DESKTOP_X11)
+bool query_geometry(AuroraDesktopGeometry& out) { return linux_x11::query_geometry(out); }
+#endif
+
 bool get_geometry(AuroraDesktopGeometry& out) {
   /* The game maps stage collision before the overlay opens. Keep that exact
    * physical geometry across settings windows and successive matches. */
@@ -184,6 +200,7 @@ bool supported_format(wgpu::TextureFormat format) {
          format == wgpu::TextureFormat::BGRA8UnormSrgb;
 }
 
+#ifdef _WIN32
 void destroy_overlay() {
   if (g_overlay) {
     UnregisterHotKey(g_overlay, ExitHotkey);
@@ -245,6 +262,11 @@ bool create_overlay() {
   return true;
 }
 
+#elif defined(AURORA_DESKTOP_X11)
+void destroy_overlay() { linux_x11::destroy_overlay(); g_overlayVisible = false; }
+bool create_overlay() { return linux_x11::create_overlay(g_geometry); }
+#endif
+
 bool set_enabled(bool enabled) {
   if (enabled == active()) return true;
   if (enabled && (g_failed || !window::get_sdl_window() || !webgpu::g_device)) return false;
@@ -268,7 +290,7 @@ bool set_enabled(bool enabled) {
       return false;
     }
     if (!create_overlay()) {
-      Log.error("Unable to create desktop compositor; retaining normal game window");
+      Log.error("Unable to create desktop compositor: {}", aurora_desktop_unavailable_reason());
       g_failed = true;
       return false;
     }
@@ -313,8 +335,16 @@ bool set_enabled(bool enabled) {
 
 bool active() noexcept { return g_active.load(std::memory_order_acquire); }
 
+bool needs_event_poll() noexcept {
+#ifdef AURORA_DESKTOP_X11
+  return linux_x11::controls_active();
+#else
+  return false;
+#endif
+}
+
 bool window_size(AuroraWindowSize& size) noexcept {
-#if defined(_WIN32) && defined(AURORA_ENABLE_GX)
+#if defined(AURORA_DESKTOP_NATIVE)
   if (!active()) return false;
   const auto budget = pixels::render_size(g_geometry.width, g_geometry.height);
   size = {g_geometry.width, g_geometry.height,
@@ -327,8 +357,19 @@ bool window_size(AuroraWindowSize& size) noexcept {
 }
 
 void pump() noexcept {
-#if defined(_WIN32) && defined(AURORA_ENABLE_GX)
-  if (!active() || !g_overlay) return;
+#if defined(AURORA_DESKTOP_NATIVE)
+#ifdef AURORA_DESKTOP_X11
+  const auto events = linux_x11::poll();
+  if (events & linux_x11::Settings) g_settingsRequested = true;
+  if (events & (linux_x11::Quit | linux_x11::LayoutChanged)) request_quit();
+  if ((events & linux_x11::Failed) && active()) {
+    Log.error("X11 desktop overlay failed: {}", linux_x11::unavailable_reason());
+    g_failed = true;
+    set_enabled(false);
+    return;
+  }
+#endif
+  if (!active()) return;
   /* GPU progress belongs to the render worker. Its end_frame/idle paths
    * already process Dawn events. Pumping here raced D3D12 completion cleanup
    * against that worker. The UI must only consume completed CPU pixels. */
@@ -351,6 +392,7 @@ void pump() noexcept {
     return;
   }
   if (frame.pixels.empty()) return;
+#ifdef _WIN32
   pixels::scale_bgra(g_bitmapBytes, g_geometry.width, g_geometry.height,
                      frame.pixels.data(), frame.width, frame.height);
   POINT dst{g_geometry.screen_x, g_geometry.screen_y};
@@ -364,8 +406,18 @@ void pump() noexcept {
     set_enabled(false);
     return;
   }
+#elif defined(AURORA_DESKTOP_X11)
+  if (!linux_x11::present(frame.pixels, frame.width, frame.height)) {
+    Log.error("X11 desktop presentation failed; restoring normal game window");
+    g_failed = true;
+    set_enabled(false);
+    return;
+  }
+#endif
   if (!g_overlayVisible) {
+#ifdef _WIN32
     ShowWindow(g_overlay, SW_SHOWNOACTIVATE);
+#endif
     g_overlayVisible = true;
     Log.info("Desktop first frame presented: {}x{} pixels", g_geometry.width, g_geometry.height);
   }
@@ -374,16 +426,19 @@ void pump() noexcept {
 
 void shutdown() noexcept {
   wallpaper::shutdown();
-#if defined(_WIN32) && defined(AURORA_ENABLE_GX)
+#if defined(AURORA_DESKTOP_NATIVE)
   if (active()) set_enabled(false);
   g_target = {};
   for (auto& slot : g_slots) slot.reset();
+#ifdef AURORA_DESKTOP_X11
+  linux_x11::shutdown();
+#endif
 #endif
 }
 
 #ifdef AURORA_ENABLE_GX
 wgpu::Texture frame_target() {
-#if defined(_WIN32)
+#if defined(AURORA_DESKTOP_NATIVE)
   if (!active()) return {};
   const auto& config = webgpu::g_graphicsConfig.surfaceConfiguration;
   if (!g_target || g_target.GetWidth() != config.width || g_target.GetHeight() != config.height ||
@@ -405,7 +460,7 @@ wgpu::Texture frame_target() {
 
 std::function<void()> record_readback(const wgpu::CommandEncoder& encoder,
                                       const wgpu::Texture& texture) {
-#if defined(_WIN32)
+#if defined(AURORA_DESKTOP_NATIVE)
   if (!active() || !texture) return {};
   std::shared_ptr<ReadbackSlot> selected;
   for (auto& slot : g_slots) {
@@ -488,7 +543,7 @@ std::function<void()> record_readback(const wgpu::CommandEncoder& encoder,
 
 extern "C" bool aurora_desktop_get_geometry(AuroraDesktopGeometry* geometry) {
   if (!geometry) return false;
-#if defined(_WIN32) && defined(AURORA_ENABLE_GX)
+#if defined(AURORA_DESKTOP_NATIVE)
   return aurora::desktop::get_geometry(*geometry);
 #else
   *geometry = {};
@@ -497,7 +552,7 @@ extern "C" bool aurora_desktop_get_geometry(AuroraDesktopGeometry* geometry) {
 }
 
 extern "C" bool aurora_desktop_enable(bool enabled) {
-#if defined(_WIN32) && defined(AURORA_ENABLE_GX)
+#if defined(AURORA_DESKTOP_NATIVE)
   return aurora::desktop::set_enabled(enabled);
 #else
   return !enabled;
@@ -505,3 +560,15 @@ extern "C" bool aurora_desktop_enable(bool enabled) {
 }
 
 extern "C" bool aurora_desktop_active(void) { return aurora::desktop::active(); }
+
+extern "C" bool aurora_desktop_take_settings_request(void) {
+  return std::exchange(aurora::desktop::g_settingsRequested, false);
+}
+
+extern "C" const char* aurora_desktop_unavailable_reason(void) {
+#ifdef AURORA_DESKTOP_X11
+  return aurora::desktop::linux_x11::unavailable_reason();
+#else
+  return "Could not initialize a transparent desktop overlay on this display.";
+#endif
+}
