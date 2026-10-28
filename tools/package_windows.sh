@@ -12,7 +12,7 @@ case "${TARGET_ARCH}" in
         BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build-win}"
         STAGE_DIR="${DIST_DIR}/melee-windows-x86_64"
         ZIP_NAME="Melee-Windows-x86_64.zip"
-        TOOLCHAIN_FILE="${ROOT_DIR}/cmake/x86_64-w64-mingw32.cmake"
+        TOOLCHAIN_FILE="${TOOLCHAIN_FILE:-${ROOT_DIR}/cmake/x86_64-w64-mingw32.cmake}"
         SDL3_PROVIDER="vendor"
         DAWN_PROVIDER="package"
         NOD_PROVIDER="package"
@@ -30,7 +30,7 @@ case "${TARGET_ARCH}" in
         BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build-win-arm64}"
         STAGE_DIR="${DIST_DIR}/melee-windows-arm64"
         ZIP_NAME="Melee-Windows-arm64.zip"
-        TOOLCHAIN_FILE="${ROOT_DIR}/cmake/aarch64-w64-mingw32.cmake"
+        TOOLCHAIN_FILE="${TOOLCHAIN_FILE:-${ROOT_DIR}/cmake/aarch64-w64-mingw32.cmake}"
         SDL3_PROVIDER="vendor"
         DAWN_PROVIDER="package"
         NOD_PROVIDER="package"
@@ -87,7 +87,7 @@ cmake -B "${BUILD_DIR}" -G Ninja \
     -DLibUSB_INCLUDE_PATH="${LIBUSB_DIR}/include" \
     -DAURORA_DAWN_PROVIDER="${DAWN_PROVIDER}" \
     -DAURORA_NOD_PROVIDER="${NOD_PROVIDER}"
-ninja -C "${BUILD_DIR}" melee
+cmake --build "${BUILD_DIR}" --target melee
 
 echo "=== Staging Windows package ==="
 rm -rf "${STAGE_DIR}"
@@ -242,9 +242,10 @@ OS_DLLS = {
     'kernel32.dll', 'user32.dll', 'gdi32.dll', 'advapi32.dll', 'shell32.dll',
     'ole32.dll', 'oleaut32.dll', 'ntdll.dll', 'winmm.dll', 'version.dll',
     'imm32.dll', 'setupapi.dll', 'bcrypt.dll', 'bcryptprimitives.dll',
-    'dxgi.dll', 'd3d11.dll', 'd3d12.dll', 'ucrtbase.dll', 'ws2_32.dll',
+    'dxgi.dll', 'd3d11.dll', 'd3d12.dll', 'dcomp.dll', 'ucrtbase.dll', 'ws2_32.dll',
     'crypt32.dll', 'shlwapi.dll', 'msvcrt.dll', 'rpcrt4.dll', 'userenv.dll',
     'cfgmgr32.dll', 'dwmapi.dll', 'uxtheme.dll', 'powrprof.dll', 'dbghelp.dll',
+    'windowscodecs.dll',
     # iphlpapi: GetAdaptersAddresses (src/pc/net_lan.c). Ships with Windows
     # since 2000; it appeared in our import table when LAN discovery landed,
     # which is why the gate started failing on a package that is in fact fine.

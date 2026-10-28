@@ -1,21 +1,9 @@
-name: Pages
+name: Upstream site (manual)
 
 # The project site (docs/site) at the root, and the browser build
 # (platforms/browser) under /play/. Players load their own disc image in the
 # page; no game data is built, uploaded or deployed.
 on:
-  push:
-    branches: [master]
-    paths:
-      - 'docs/site/**'
-      - '.github/workflows/pages.yml'
-      - 'platforms/browser/**'
-      - 'tools/browser/**'
-      - 'tests/browser/**'
-      - 'src/**'
-      - 'extern/**'
-      - 'cmake/**'
-      - 'CMakeLists.txt'
   workflow_dispatch:
 
 permissions:

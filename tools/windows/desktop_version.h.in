@@ -1,0 +1,2 @@
+/* Generated from DESKTOP_VERSION for the Windows resource compiler. */
+#define DESKTOP_RESOURCE_VERSION "@DESKTOP_MELEE_VERSION@\0"

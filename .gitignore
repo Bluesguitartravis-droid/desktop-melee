@@ -6,6 +6,7 @@ __pycache__/
 
 # Internal working notes stay local; only the screenshots are published.
 docs/*
+!docs/DESKTOP_MELEE.md
 !docs/screenshots/
 !docs/CODING_STYLE.md
 !docs/netcode-plan.md
@@ -39,6 +40,17 @@ local/
 # MELEE_LOG_FILE defaults to this beside the executable on Windows, so a run
 # started from the repo root writes it here.
 melee-pc.log
+desktop-melee.log
+
+# Local disc data, portable saves and personal launcher settings.
+*.iso
+*.gcm
+*.ciso
+*.rvz
+*.gcz
+*.wia
+/user/
+/settings.ini
 
 # User installed mods
 mods/*

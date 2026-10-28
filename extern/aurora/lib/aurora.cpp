@@ -28,6 +28,7 @@
 #include "internal.hpp"
 #include "thread.hpp"
 #include "window.hpp"
+#include "desktop.hpp"
 
 #include <SDL3/SDL_filesystem.h>
 #include <magic_enum.hpp>
@@ -262,6 +263,7 @@ AuroraInfo initialize(int argc, char* argv[], const AuroraConfig& config) noexce
 }
 
 void shutdown() noexcept {
+  desktop::shutdown();
 #ifdef AURORA_ENABLE_GX
   gx::fifo::shutdown();
   gfx::render_worker::synchronize();
@@ -299,7 +301,7 @@ bool begin_frame() noexcept {
     if (window::is_paused()) {
       return false;
     }
-    if (!g_surface) {
+    if (!g_surface && !desktop::active()) {
       webgpu::refresh_surface(true);
       if (!g_surface) {
         return false;
@@ -353,7 +355,12 @@ void end_frame() noexcept {
     wgpu::Texture currentTexture;
     wgpu::TextureView currentView;
     auto surfaceStatus = wgpu::SurfaceGetCurrentTextureStatus::Error;
-    {
+    const bool desktopPresent = desktop::active();
+    if (desktopPresent) {
+      currentTexture = desktop::frame_target();
+      if (currentTexture) currentView = currentTexture.CreateView();
+      surfaceStatus = wgpu::SurfaceGetCurrentTextureStatus::SuccessOptimal;
+    } else {
       window::SurfaceLock surfaceLock;
       if (window::is_presentable() && g_surface) {
         ZoneScopedN("Acquire texture");
@@ -384,7 +391,7 @@ void end_frame() noexcept {
       wgpu::BindGroup presentBindGroup;
       if (rmlBindGroup && !rmlOverlay) {
         presentBindGroup = rmlBindGroup;
-      } else if (webgpu::get_resampler() == SAMPLER_BILINEAR) {
+      } else if (desktopPresent || webgpu::get_resampler() == SAMPLER_BILINEAR) {
         presentBindGroup = webgpu::g_CopyBindGroup;
       } else {
         const auto& resampledSource = webgpu::resample_present_source(encoder, viewport);
@@ -406,7 +413,7 @@ void end_frame() noexcept {
         };
         const auto pass = encoder.BeginRenderPass(&renderPassDescriptor);
         // Copy EFB -> XFB (swapchain)
-        pass.SetPipeline(webgpu::g_CopyPipeline);
+        pass.SetPipeline(desktopPresent ? webgpu::g_CopyTransparentPipeline : webgpu::g_CopyPipeline);
         pass.SetBindGroup(0, presentBindGroup, 0, nullptr);
         /* The acquired texture's own size, not the configured one: a browser
          * canvas that the page resized (SDL follows its CSS size) hands back
@@ -446,6 +453,10 @@ void end_frame() noexcept {
     } else {
       Log.info("Skipping present; no usable surface texture ({})", magic_enum::enum_name(surfaceStatus));
     }
+    if (desktopPresent && canPresent) {
+      auto readback = desktop::record_readback(encoder, currentTexture);
+      if (readback) afterSubmitCallbacks.push_back(std::move(readback));
+    }
     webgpu::gpu_prof::frame_end(encoder);
     const wgpu::CommandBufferDescriptor cmdBufDescriptor{.label = "Redraw command buffer"};
     const auto buffer = encoder.Finish(&cmdBufDescriptor);
@@ -455,7 +466,9 @@ void end_frame() noexcept {
       g_queue.Submit(1, &buffer);
     }
     webgpu::gpu_prof::after_submit();
-    if (canPresent && g_surface) {
+    if (desktopPresent && canPresent) {
+      gfx::after_present();
+    } else if (canPresent && g_surface) {
       ZoneScopedN("Present");
       AndroidTraceScope trace("Surface present");
       wgpu::ConvertibleStatus status = wgpu::Status::Error;

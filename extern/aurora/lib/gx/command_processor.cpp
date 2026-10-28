@@ -2,6 +2,7 @@
 #include <cstring>
 #include <string>
 #include "command_processor.hpp"
+#include "../desktop.hpp"
 
 #include "../gfx/depth_peek.hpp"
 #include "../gfx/recording.hpp"
@@ -403,8 +404,10 @@ static void push_gx_draw(GXPrimitive prim, GXVtxFmt fmt, u16 vtxCount, gfx::Rang
 
   const u8 lineMode = line_mode_for_prim(prim);
   const auto targetLayoutKey = gfx::get_render_target_layout().key;
+  const uint32_t desktopCoverage = desktop::active() && !gfx::is_offscreen() ? 1u : 0u;
   const bool pipelineValid = cache.hasPipeline && (state.dirty & DirtyPipeline) == 0 && cache.fmt == fmt &&
-                             cache.lineMode == lineMode && cache.targetLayoutKey == targetLayoutKey;
+                             cache.lineMode == lineMode && cache.targetLayoutKey == targetLayoutKey &&
+                             cache.config.desktopCoverage == desktopCoverage;
   if (!pipelineValid) {
     const bool hadPipeline = cache.hasPipeline;
     const auto prevSampledTextures = cache.shaderInfo.sampledTextures;

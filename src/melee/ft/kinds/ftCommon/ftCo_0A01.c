@@ -1,4 +1,7 @@
 #include "ftCo_0A01.h"
+#ifdef TARGET_PC
+#include <pc/desktop_game.h>
+#endif
 
 #include <Runtime/platform.h>
 
@@ -805,6 +808,10 @@ void ftCo_800A101C(Fighter* arg0, int arg1, int arg2, int arg3)
     }
     temp_r30->half_width = 10.0f;
     temp_r30->half_height = 10.0f;
+#ifdef TARGET_PC
+    temp_r30->half_height =
+        pc_desktop_cpu_vertical_margin(temp_r30->half_height);
+#endif
     temp_r30->x570 = 1.0f;
     ftCo_800B9704(arg0);
     switch (arg0->kind) {

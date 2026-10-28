@@ -2,6 +2,9 @@ add_library(aurora_core STATIC
         lib/aurora.cpp
         lib/device.cpp
         lib/device.hpp
+        lib/desktop.cpp
+        lib/desktop_windows.cpp
+        lib/desktop_wallpaper.cpp
         lib/gamepad.cpp
         lib/gamepad.hpp
         lib/input/binding.cpp
@@ -42,6 +45,7 @@ if (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
 endif ()
 
 if (CMAKE_SYSTEM_NAME STREQUAL Windows)
+    target_link_libraries(aurora_core PRIVATE user32 gdi32 shell32 dwmapi ole32 windowscodecs uuid)
     # stuff for fetching system info.
     if (MSVC)
         target_link_libraries(aurora_core PRIVATE wbemuuid.lib comsuppw.lib ntdll.lib DXGI.lib)

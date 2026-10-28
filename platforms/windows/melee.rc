@@ -1,5 +1,7 @@
 #include <windows.h>
 
+1 RT_MANIFEST "desktop-melee.manifest"
+
 IDI_ICON1 ICON "melee.ico"
 
 VS_VERSION_INFO VERSIONINFO

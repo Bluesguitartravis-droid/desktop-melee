@@ -26,9 +26,9 @@ struct DrawData {
 };
 
 #ifdef __EMSCRIPTEN__
-constexpr uint32_t GXPipelineConfigVersion = 10013;
+constexpr uint32_t GXPipelineConfigVersion = 10014;
 #else
-constexpr uint32_t GXPipelineConfigVersion = 13;
+constexpr uint32_t GXPipelineConfigVersion = 14;
 #endif
 struct PipelineConfig {
   uint32_t version = GXPipelineConfigVersion;
@@ -44,6 +44,7 @@ struct PipelineConfig {
   uint32_t polygonOffsetScaleBits;
   uint32_t polygonOffsetClampBits;
   bool depthCompare, depthUpdate, alphaUpdate, colorUpdate;
+  uint32_t desktopCoverage = 0;
 };
 static_assert(std::has_unique_object_representations_v<PipelineConfig>);
 

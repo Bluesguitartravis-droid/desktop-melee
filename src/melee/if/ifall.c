@@ -27,6 +27,7 @@
 
 #include "pc/pc.h"
 #include "pc/widescreen.h"
+#include "pc/desktop_game.h"
 
 static struct ifAll_804A0FD8_t {
     /* 0x00 */ HSD_GObj* gobj;
@@ -148,6 +149,10 @@ void ifAll_802F343C(int count)
             }
         }
     }
+    for (i = 0; i < count && i < 6; ++i) {
+        pc_desktop_hud_position(i, count, &ifAll_804A0FD8.x18[i].x,
+                                &ifAll_804A0FD8.x18[i].y);
+    }
 }
 
 HSD_Archive** ifAll_GetArchive(void)
@@ -224,6 +229,10 @@ static void ifAll_802F370C(SceneDesc* scene)
             ifAll_804A0FD8.x18[i].x =
                 pc_widescreen_hud_player_x(i, 4, ifAll_804A0FD8.x18[i].x);
         }
+    }
+    for (i = 0; i < 2; ++i) {
+        pc_desktop_hud_position(i, 2, &ifAll_804A0FD8.x18[i].x,
+                                &ifAll_804A0FD8.x18[i].y);
     }
 }
 

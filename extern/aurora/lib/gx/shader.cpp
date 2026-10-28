@@ -1721,7 +1721,7 @@ std::string build_shader_source(const ShaderConfig& config, DstAlphaMode dstAlph
     fragmentFn += "\n    prev = vec4f(in.nrm, prev.a);";
   }
 
-  if (dstAlphaMode == DstAlphaMode::Replace) {
+  if (dstAlphaMode == DstAlphaMode::Replace || dstAlphaMode == DstAlphaMode::DesktopOpaque) {
     fragmentFn += "\n prev.a = 1.0;";
   }
 

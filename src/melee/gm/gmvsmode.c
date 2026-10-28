@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <melee/lb/forward.h>
+#ifdef TARGET_PC
+#include <pc/desktop_game.h>
+#endif
 
 #include "forward.h"
 #include "gm_1A3F.h"
@@ -17,6 +20,9 @@
 #include <melee/mn/types.h>
 
 /* 1B13B8 */ static void onEnterDebugVs(GameModeState*);
+#ifdef TARGET_PC
+static void onExitDesktopVs(GameModeState*);
+#endif
 /* 1B14A0 */ static void onEnterCss(GameModeState*);
 /* 1B14DC */ static void onExitCss(GameModeState*);
 /* 1B1514 */ static void onEnterSss(GameModeState*);
@@ -139,7 +145,11 @@ GameModeState gm_Mode_DebugVs_States[] = {
         lbDvdPreload_2,
         0,
         onEnterDebugVs,
+#ifdef TARGET_PC
+        onExitDesktopVs,
+#else
         NULL,
+#endif
         {
             GS_VS,
             &gmVsMelee_StartData,
@@ -236,8 +246,23 @@ void onEnterDebugVs(GameModeState* state)
     start->players[2].rumble_enabled = false;
     start->players[3].rumble_enabled = false;
 
+#ifdef TARGET_PC
+    pc_desktop_configure_match(start);
+#endif
     gm_LoadAnnouncer();
 }
+
+#ifdef TARGET_PC
+static void onExitDesktopVs(GameModeState* state)
+{
+    (void) state;
+    if (pc_desktop_requested()) {
+        /* The ordinary match handles GAME!/stocks, then starts a fresh round.
+         * This also makes CPU-vs-CPU mode a continuous desktop companion. */
+        gm_SetNextGameModeStateId(state_debug_vs);
+    }
+}
+#endif
 
 void onEnterCss(GameModeState* state)
 {

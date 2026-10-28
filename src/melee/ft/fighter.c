@@ -93,6 +93,7 @@
 #include <sysdolphin/baselib/mtx.h>
 #include <sysdolphin/baselib/random.h>
 #ifdef TARGET_PC
+#include "pc/desktop_fighter.h"
 #include "pc/slp.h"
 #endif
 
@@ -2413,7 +2414,11 @@ void Fighter_procUpdate(Fighter_GObj* gobj)
     fp->cur_pos.y += windOffset.y;
     fp->cur_pos.z += windOffset.z; ///< @todo do the bitflag tests here tell us
                                    ///< if the player is dead?
+#ifdef TARGET_PC
+    pc_desktop_check_blast_zones_before_map(gobj);
+#else
     ftCo_800D3158(gobj);
+#endif
 
     if (fp->x2225_b0) {
         // if position.y crossed
@@ -2513,6 +2518,10 @@ void Fighter_procMap(Fighter_GObj* gobj)
             fp->coll_cb(gobj);
             ftKb_SpecialN_800F1D24(gobj);
         }
+
+#ifdef TARGET_PC
+        pc_desktop_check_blast_zones_after_map(gobj);
+#endif
 
         if (fp->ground_or_air == GA_Ground) {
             pl_80041280(fp->player_idx, fp->is_sub_fighter);

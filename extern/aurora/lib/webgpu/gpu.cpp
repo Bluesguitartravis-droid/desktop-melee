@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <span>
 #include <string>
 #include <string_view>
@@ -49,6 +50,7 @@ TextureWithSampler g_normalBuffer;
 static wgpu::BindGroupLayout g_CopyBindGroupLayout;
 wgpu::RenderPipeline g_CopyPipeline;
 wgpu::RenderPipeline g_CopyPremultipliedAlphaPipeline;
+wgpu::RenderPipeline g_CopyTransparentPipeline;
 wgpu::BindGroup g_CopyBindGroup;
 static AuroraSampler g_Resampler = SAMPLER_BILINEAR;
 static wgpu::BindGroupLayout g_ResampleBindGroupLayout;
@@ -581,6 +583,7 @@ fn fs_premultiplied_alpha(in: VertexOutput) -> @location(0) vec4<f32> {
     return g_device.CreateRenderPipeline(&pipelineDescriptor);
   };
   g_CopyPipeline = make_copy_pipeline("XFB Copy Pipeline", "fs_opaque", nullptr);
+  g_CopyTransparentPipeline = make_copy_pipeline("Desktop Alpha Copy Pipeline", "fs_premultiplied_alpha", nullptr);
 
   const wgpu::BlendState premultipliedAlphaBlend{
       .color =
@@ -1055,16 +1058,12 @@ bool initialize(AuroraBackend auroraBackend, bool allowCpu) {
           store_to_cache(key.data(), key.size(), value.data(), value.size(), nullptr);
         });
 
-    constexpr std::array enableToggles{
+    std::vector<const char*> enableToggles{
 #if _WIN32
         "use_dxc",
 #ifndef NDEBUG
         "emit_hlsl_debug_symbols",
 #endif
-#endif
-#ifdef NDEBUG
-        "skip_validation",
-        "disable_robustness",
 #endif
 #ifndef ANDROID
         "use_user_defined_labels_in_backend",
@@ -1073,6 +1072,16 @@ bool initialize(AuroraBackend auroraBackend, bool allowCpu) {
         "enable_immediate_error_handling",
         "gl_allow_context_on_multi_threads",
     };
+#ifdef NDEBUG
+    const char* desktopMode = std::getenv("MELEE_DESKTOP");
+    const bool desktopPreview = desktopMode && desktopMode[0] && desktopMode[0] != '0';
+    if (desktopPreview) {
+      Log.info("Desktop preview: WebGPU validation and robustness enabled");
+    } else {
+      enableToggles.push_back("skip_validation");
+      enableToggles.push_back("disable_robustness");
+    }
+#endif
     constexpr std::array disableToggles{
         "timestamp_quantization",
         // Adreno strikes again!
@@ -1193,6 +1202,7 @@ void shutdown() {
   gpu_prof::shutdown();
   g_CopyBindGroupLayout = {};
   g_CopyPipeline = {};
+  g_CopyTransparentPipeline = {};
   g_CopyPremultipliedAlphaPipeline = {};
   g_CopyBindGroup = {};
   g_ResampleBindGroupLayout = {};

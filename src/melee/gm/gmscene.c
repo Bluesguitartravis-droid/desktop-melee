@@ -1,5 +1,6 @@
 #include "gmscene.h"
 #ifdef TARGET_PC
+#include "pc/desktop_game.h"
 #include "pc/net.h"
 #include "pc/pc.h"
 #include "pc/slp.h"
@@ -195,6 +196,8 @@ void gm_801A4B88(struct GameSceneInfo* info)
 {
     gm_804D6720 = info;
 #ifdef TARGET_PC
+    /* Reset paths may skip the preceding scene's on_exit callback. */
+    pc_desktop_end_match();
     /* Every mode fights in a VS scene: Classic, Adventure, All-Star, Event,
      * Stadium and Special Smash all arrive here with GS_VS. Menus, results and
      * cutscenes keep the original aspect. */
@@ -331,6 +334,7 @@ static bool gm_RunSimTick(void (*on_frame)(void), struct gm_80479D58_t* temp_r25
     HSD_GObj_RunProcs();
 #ifdef TARGET_PC
     pc_slp_tick_end(temp_r25->unk_10.unk_28);
+    pc_desktop_simulation_tick();
 #endif
     if (temp_r25->unk_0 != -2) {
         temp_r25->unk_0++;

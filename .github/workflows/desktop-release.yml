@@ -1,0 +1,175 @@
+name: Desktop Windows release
+
+on:
+  push:
+    tags: ['desktop-v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag; must match DESKTOP_VERSION in the selected ref'
+        required: true
+        default: desktop-v0.1.6
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Test and build Windows x64
+    if: github.repository == 'Bluesguitartravis-droid/desktop-melee'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
+      commit: ${{ steps.release.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate release identity
+        id: release
+        env:
+          REQUESTED_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, re, subprocess
+          version = pathlib.Path('DESKTOP_VERSION').read_text().strip()
+          if not re.fullmatch(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', version):
+              raise SystemExit('DESKTOP_VERSION must be MAJOR.MINOR.PATCH')
+          tag = os.environ['REQUESTED_TAG']
+          if tag != 'desktop-v' + version:
+              raise SystemExit('Release tag must exactly match desktop-v' + version)
+          commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          old = subprocess.run(['git', 'rev-parse', '--verify', '--quiet', 'refs/tags/' + tag + '^{commit}'],
+                               capture_output=True, text=True)
+          if old.returncode == 0 and old.stdout.strip() != commit:
+              raise SystemExit('Existing release tag points to a different commit')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'tag={tag}\nversion={version}\ncommit={commit}\n')
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write(f'MELEE_VERSION={version}\n')
+          PY
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build pkg-config python3 git \
+            zip cabextract curl bzip2 xz-utils mingw-w64 nsis
+          # SDL/Aurora use std::thread; the POSIX MinGW variant is required.
+          sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+          sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+
+      - name: Native game, terrain and updater regressions
+        run: |
+          bash tools/test_desktop_game.sh
+          bash tools/test_desktop_collision.sh
+          bash tools/test_desktop_fighter.sh
+          bash tools/test_desktop_update.sh
+          python3 tools/test_desktop_release.py
+          test_output="$(mktemp -d)"
+          trap 'rm -rf "$test_output"' EXIT
+          for test_name in desktop_pixels desktop_window_geometry desktop_wallpaper_geometry desktop_wallpaper_mapping; do
+            g++ -std=c++20 -O2 -Wall -Wextra -Werror -Iextern/aurora/include \
+              "extern/aurora/tests/${test_name}_test.cpp" -o "$test_output/$test_name"
+            "$test_output/$test_name"
+          done
+
+      - name: Build complete Windows package
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: '4'
+        run: bash tools/build_desktop_windows.sh
+
+      - name: Package matching source and checksums
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          python3 tools/package_desktop_source.py \
+            --tag "$RELEASE_TAG" \
+            --binary-archive dist/Desktop-Melee-Windows-x64.zip \
+            --installer dist/Desktop-Melee-Setup-x64.exe \
+            --output-dir dist
+
+      - name: Preserve validated release files
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: ${{ steps.release.outputs.tag }}
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            dist/Desktop-Melee-Setup-x64.exe
+            dist/Desktop-Melee-Setup-x64.manifest.json
+            dist/Desktop-Melee-Windows-x64.zip
+            dist/Desktop-Melee-Source-${{ steps.release.outputs.version }}.zip
+            dist/SHA256SUMS
+            dist/RELEASE-NOTES.md
+
+  release:
+    name: Publish complete release
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ needs.build.outputs.tag }}
+      RELEASE_VERSION: ${{ needs.build.outputs.version }}
+      RELEASE_COMMIT: ${{ needs.build.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ needs.build.outputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4.3.0
+        with:
+          name: ${{ needs.build.outputs.tag }}
+          path: release-files
+
+      - name: Verify and publish
+        run: |
+          test "$(git rev-parse HEAD)" = "$RELEASE_COMMIT"
+          test "$RELEASE_TAG" = "desktop-v$(tr -d '\r\n' < DESKTOP_VERSION)"
+          # A manual dispatch may create a new tag only at the tested commit.
+          # Re-fetch to catch a tag created while the build was running.
+          git fetch --force --tags origin
+          if tag_commit="$(git rev-parse --verify --quiet "refs/tags/${RELEASE_TAG}^{commit}")"; then
+            test "$tag_commit" = "$RELEASE_COMMIT"
+          fi
+          cd release-files
+          sha256sum --check SHA256SUMS
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo '::error::A release with this tag already exists. Published assets are never overwritten; inspect any unfinished draft or use a new version.'
+            exit 1
+          fi
+          # Keep the release hidden from the launcher's update checker until
+          # all assets are present. Do not replace existing release assets.
+          gh release create "$RELEASE_TAG" --target "$RELEASE_COMMIT" \
+            --draft --title "Desktop Melee ${RELEASE_VERSION}" \
+            --notes-file RELEASE-NOTES.md
+          gh release upload "$RELEASE_TAG" \
+            Desktop-Melee-Setup-x64.exe \
+            Desktop-Melee-Windows-x64.zip \
+            "Desktop-Melee-Source-${RELEASE_VERSION}.zip" SHA256SUMS
+          gh release view "$RELEASE_TAG" --json assets > release-assets.json
+          python3 - <<'PY'
+          import json, os
+          actual = {asset['name'] for asset in json.load(open('release-assets.json'))['assets']}
+          expected = {'Desktop-Melee-Setup-x64.exe', 'Desktop-Melee-Windows-x64.zip', 'SHA256SUMS',
+                      'Desktop-Melee-Source-' + os.environ['RELEASE_VERSION'] + '.zip'}
+          if actual != expected:
+              raise SystemExit('Release asset list is incomplete; leaving the draft unpublished')
+          PY
+          gh release edit "$RELEASE_TAG" --draft=false --latest

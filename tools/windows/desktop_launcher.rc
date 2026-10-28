@@ -1,0 +1,25 @@
+#include <windows.h>
+#include "desktop_version.h"
+1 RT_MANIFEST "desktop_launcher.manifest"
+1 VERSIONINFO
+FILEVERSION DESKTOP_MELEE_VERSION_MAJOR,DESKTOP_MELEE_VERSION_MINOR,DESKTOP_MELEE_VERSION_PATCH,0
+PRODUCTVERSION DESKTOP_MELEE_VERSION_MAJOR,DESKTOP_MELEE_VERSION_MINOR,DESKTOP_MELEE_VERSION_PATCH,0
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904b0"
+    BEGIN
+      VALUE "FileDescription", "Desktop Melee Windows Preview\0"
+      VALUE "ProductName", "Desktop Melee\0"
+      VALUE "FileVersion", DESKTOP_RESOURCE_VERSION
+      VALUE "ProductVersion", DESKTOP_RESOURCE_VERSION
+      VALUE "OriginalFilename", "DesktopMelee.exe\0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0409, 1200
+  END
+END

@@ -28,6 +28,13 @@ gfx::CompiledPipeline create_pipeline(const PipelineConfig& config, const gfx::R
       .alphaUpdate = config.alphaUpdate,
       .depthUpdate = config.depthUpdate,
   };
+  const bool replacesColor = config.blendMode == GX_BM_NONE ||
+      (config.blendMode == GX_BM_LOGIC && config.blendOp == GX_LO_COPY) ||
+      (config.blendMode == GX_BM_BLEND && config.blendFacSrc == GX_BL_ONE &&
+       config.blendFacDst == GX_BL_ZERO);
+  if (config.desktopCoverage && replacesColor) {
+    options.dstAlphaMode = DstAlphaMode::DesktopOpaque;
+  }
   gfx::CompiledPipeline pipeline;
   if (config.alphaUpdate && config.dstAlpha != UINT32_MAX && config.dstAlpha != 0) {
     const auto usesSourceAlpha = [](GXBlendFactor factor) {

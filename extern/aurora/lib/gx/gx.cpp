@@ -11,6 +11,7 @@
 #include "../webgpu/gpu.hpp"
 #include "../internal.hpp"
 #include "../window.hpp"
+#include "../desktop.hpp"
 #include "../gfx/resources.hpp"
 #include "../gfx/recording.hpp"
 #include "../gfx/resource_cache.hpp"
@@ -365,8 +366,30 @@ wgpu::RenderPipeline build_pipeline(const PipelineConfig& config, const gfx::Ren
       .depthBiasSlopeScale = depthBiasSlopeScale,
       .depthBiasClamp = depthBiasClamp,
   };
-  const auto blendState = to_blend_state(config.blendMode, config.blendFacSrc, config.blendFacDst, config.blendOp,
+  auto blendState = to_blend_state(config.blendMode, config.blendFacSrc, config.blendFacDst, config.blendOp,
                                          config.dstAlpha, options.dstAlphaMode == DstAlphaMode::DualSource);
+  if (config.desktopCoverage) {
+    /* Preserve real color blending, but accumulate coverage for the desktop
+     * compositor instead of the GameCube's optional destination-alpha data. */
+    blendState.alpha = {
+        .operation = wgpu::BlendOperation::Add,
+        .srcFactor = wgpu::BlendFactor::One,
+        .dstFactor = wgpu::BlendFactor::OneMinusSrcAlpha,
+    };
+    if (config.blendMode == GX_BM_SUBTRACT ||
+        (config.blendMode == GX_BM_LOGIC && config.blendOp == GX_LO_NOOP)) {
+      /* These operations can darken existing pixels, but do not add a new
+       * visible surface on the otherwise transparent desktop. */
+      blendState.alpha.srcFactor = wgpu::BlendFactor::Zero;
+      blendState.alpha.dstFactor = wgpu::BlendFactor::One;
+    } else if (config.blendMode == GX_BM_LOGIC && config.blendOp == GX_LO_CLEAR) {
+      blendState.alpha.srcFactor = wgpu::BlendFactor::Zero;
+      blendState.alpha.dstFactor = wgpu::BlendFactor::Zero;
+    } else if (config.blendMode == GX_BM_BLEND && config.blendFacSrc == GX_BL_ZERO) {
+      blendState.alpha.srcFactor = wgpu::BlendFactor::Zero;
+      blendState.alpha.dstFactor = blendState.color.dstFactor;
+    }
+  }
   std::array<wgpu::ColorTargetState, gfx::MaxColorAttachments> colorTargets{};
   for (uint32_t i = 0; i < layout.colorAttachmentCount; ++i) {
     colorTargets[i] = {
@@ -525,6 +548,7 @@ void populate_pipeline_config(PipelineConfig& config, GXPrimitive primitive, GXV
   const auto [polygonOffset, polygonOffsetScale] = polygon_offset_for_cull_mode(cullMode);
   const bool hasAlpha = efb_has_alpha(g_gxState.pixelFmt);
   const bool alphaUpdate = hasAlpha && g_gxState.alphaUpdate;
+  const bool desktopCoverage = desktop::active() && !gfx::is_offscreen();
   const auto blendFactor = [hasAlpha](GXBlendFactor factor) {
     if (!hasAlpha) {
       if (factor == GX_BL_DSTALPHA) {
@@ -544,14 +568,15 @@ void populate_pipeline_config(PipelineConfig& config, GXPrimitive primitive, GXV
       .blendFacSrc = blendFactor(g_gxState.blendFacSrc),
       .blendFacDst = blendFactor(g_gxState.blendFacDst),
       .blendOp = g_gxState.blendOp,
-      .dstAlpha = alphaUpdate ? g_gxState.dstAlpha : UINT32_MAX,
+      .dstAlpha = !desktopCoverage && alphaUpdate ? g_gxState.dstAlpha : UINT32_MAX,
       .polygonOffsetBits = std::bit_cast<uint32_t>(polygonOffset),
       .polygonOffsetScaleBits = std::bit_cast<uint32_t>(polygonOffsetScale),
       .polygonOffsetClampBits = std::bit_cast<uint32_t>(g_gxState.clamp),
       .depthCompare = g_gxState.depthCompare,
       .depthUpdate = g_gxState.depthUpdate,
-      .alphaUpdate = alphaUpdate,
+      .alphaUpdate = desktopCoverage ? g_gxState.colorUpdate : alphaUpdate,
       .colorUpdate = g_gxState.colorUpdate,
+      .desktopCoverage = desktopCoverage ? 1u : 0u,
   };
 }
 

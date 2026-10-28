@@ -25,6 +25,8 @@
 #include "pc/pc.h"
 #include "pc/android_hooks.h"
 #include "pc/launcher.h"
+#include "pc/desktop_game.h"
+#include "pc/desktop_host.h"
 
 int melee_main(void);
 
@@ -291,7 +293,7 @@ static LONG WINAPI crash_handler(EXCEPTION_POINTERS* info) {
 
 static void usage(const char* argv0) {
     fprintf(stderr,
-        "usage: %s [--no-card] [--dvd] [disc image (iso/gcm/ciso/rvz/...)]\n"
+        "usage: %s [--desktop] [--no-card] [--dvd] [disc image (iso/gcm/ciso/rvz/...)]\n"
         "       %s --version | --help\n"
         "No disc argument opens the launcher. MELEE_BACKEND, MELEE_VSYNC, MELEE_LOG_FILE,\n"
         "MELEE_DEBUG and the other MELEE_* knobs are documented in README.md.\n",
@@ -311,6 +313,7 @@ static void pc_shutdown_once(void) {
         return;
     }
     done = true;
+    pc_desktop_host_shutdown();
     pc_net_match_stop();
     pc_net_disconnect();
     pc_lan_stop();
@@ -489,6 +492,8 @@ MELEE_EXPORT int main(int argc, char* argv[]) {
             d = argv[++i];
         } else if (strcmp(argv[i], "--no-card") == 0) {
             card = false;
+        } else if (strcmp(argv[i], "--desktop") == 0) {
+            SDL_setenv_unsafe("MELEE_DESKTOP", "1", 1);
         } else if (strcmp(argv[i], "--version") == 0) {
             printf("melee-pc %s\n", pc_app_version());
             return 0;
@@ -511,7 +516,7 @@ MELEE_EXPORT int main(int argc, char* argv[]) {
              * `fopen` cannot open one, so probing with it rejected every
              * disc a phone can actually hand us. */
             const bool uri = strncmp(d, "content://", 10) == 0;
-            FILE* f = uri ? NULL : fopen(d, "rb");
+            SDL_IOStream* f = uri ? NULL : SDL_IOFromFile(d, "rb");
             if (d[0] == '\0' || (!uri && f == NULL)) {
                 fprintf(stderr, "%s: cannot open disc %s\n", argv[0], d);
 #if defined(__ANDROID__)
@@ -527,10 +532,15 @@ MELEE_EXPORT int main(int argc, char* argv[]) {
 #endif
             }
             if (f != NULL) {
-                fclose(f);
+                SDL_CloseIO(f);
             }
             disc = d;
         }
+    }
+
+    if (pc_desktop_requested()) {
+        SDL_setenv_unsafe("MELEE_BOOT_SCENE", "vs", 1);
+        SDL_setenv_unsafe("MELEE_WINDOW_TITLE", "Desktop Melee - Windows Preview 6", 1);
     }
 
     /* RmlUi resolves a document's relative assets (the launcher's art under launcher/)
@@ -582,6 +592,11 @@ MELEE_EXPORT int main(int argc, char* argv[]) {
      * hidapi hint so SDL's rescaling driver leaves it for our raw path. */
     pc_gcadapter_init();
     pc_launcher_configure(&config);
+    if (pc_desktop_requested()) {
+        config.startFullscreen = false;
+        config.allowJoystickBackgroundEvents = true;
+        config.pauseOnFocusLost = false;
+    }
 
     const AuroraInfo info = aurora_initialize(argc, argv, &config);
 
@@ -696,6 +711,8 @@ MELEE_EXPORT int main(int argc, char* argv[]) {
     pc_android_set_launcher_active(false);
 
     pc_menu_init(info.window);
+    if (!pc_desktop_host_init(info.window))
+        return 1;
     pc_platform_init();
     aurora_card_set_present(card);
     int rc = melee_main();

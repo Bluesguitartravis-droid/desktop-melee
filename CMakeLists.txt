@@ -6,6 +6,16 @@ endif ()
 
 project(melee-pc LANGUAGES C CXX)
 
+# Desktop releases have their own version namespace, separate from upstream.
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/DESKTOP_VERSION")
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/DESKTOP_VERSION" DESKTOP_MELEE_VERSION LIMIT_COUNT 1)
+if (NOT DESKTOP_MELEE_VERSION MATCHES "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$")
+    message(FATAL_ERROR "DESKTOP_VERSION must be MAJOR.MINOR.PATCH")
+endif ()
+set(DESKTOP_MELEE_VERSION_MAJOR "${CMAKE_MATCH_1}")
+set(DESKTOP_MELEE_VERSION_MINOR "${CMAKE_MATCH_2}")
+set(DESKTOP_MELEE_VERSION_PATCH "${CMAKE_MATCH_3}")
+
 # Native UI, updater and package metadata use the same release version.
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION")
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" _melee_version LIMIT_COUNT 1)
@@ -160,7 +170,7 @@ endif ()
 # ---- Game code (decomp, compiled as C) -------------------------------------
 include(cmake/GameSources.cmake)
 
-add_library(melee_game STATIC ${GAME_SOURCES} src/pc/widescreen.c)
+add_library(melee_game STATIC ${GAME_SOURCES} src/pc/widescreen.c src/pc/desktop_game.c src/pc/desktop_fighter.c)
 target_include_directories(melee_game PUBLIC extern/aurora/include src src/sdk_include)
 target_compile_definitions(melee_game PUBLIC TARGET_PC=1 MELEE_PC=1)
 target_compile_options(melee_game PRIVATE
@@ -214,6 +224,7 @@ set(PC_SOURCES
         src/pc/input_poll.c
         src/pc/keyboard.c
         src/pc/main.c
+        src/pc/desktop_host.cpp
         src/pc/paths.c
         src/pc/misc.c
         src/pc/os.c
@@ -288,6 +299,7 @@ target_compile_options(melee PRIVATE
         ${MELEE_FP_FLAGS}
         $<$<AND:$<COMPILE_LANGUAGE:C>,$<NOT:$<BOOL:${WIN32}>>,$<NOT:$<BOOL:${ANDROID}>>,$<NOT:$<BOOL:${APPLE}>>>:-fno-pie>)
 target_link_libraries(melee PRIVATE melee_game aurora::main ${MELEE_CRYPTO_LIBS} ${MELEE_NETWORK_LIBS})
+target_compile_definitions(melee PRIVATE DESKTOP_MELEE_BUILD=1)
 
 if (IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
     target_link_libraries(melee PRIVATE
@@ -408,6 +420,26 @@ if (NOT WIN32 AND NOT APPLE)
 endif()
 
 set_target_properties(melee PROPERTIES OUTPUT_NAME melee)
+if (WIN32)
+    configure_file(tools/windows/desktop_version.h.in
+        "${CMAKE_CURRENT_BINARY_DIR}/desktop_version.h" @ONLY)
+    add_executable(DesktopMelee WIN32
+        tools/windows/desktop_launcher.cpp tools/windows/desktop_update.cpp
+        tools/windows/desktop_launcher.rc)
+    target_include_directories(DesktopMelee PRIVATE tools/windows "${CMAKE_CURRENT_BINARY_DIR}")
+    target_compile_definitions(DesktopMelee PRIVATE UNICODE _UNICODE
+        WIN32_LEAN_AND_MEAN NOMINMAX
+        DESKTOP_MELEE_VERSION="${DESKTOP_MELEE_VERSION}"
+        DESKTOP_MELEE_VERSION_MAJOR=${DESKTOP_MELEE_VERSION_MAJOR}
+        DESKTOP_MELEE_VERSION_MINOR=${DESKTOP_MELEE_VERSION_MINOR}
+        DESKTOP_MELEE_VERSION_PATCH=${DESKTOP_MELEE_VERSION_PATCH}
+        DESKTOP_MELEE_GITHUB_OWNER="Bluesguitartravis-droid"
+        DESKTOP_MELEE_GITHUB_REPO="desktop-melee")
+    target_link_libraries(DesktopMelee PRIVATE comctl32 comdlg32 shell32 user32 gdi32 winhttp)
+    if (MINGW)
+        target_link_options(DesktopMelee PRIVATE -municode -static -static-libstdc++ -static-libgcc)
+    endif ()
+endif ()
 if (IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
     set_target_properties(melee PROPERTIES
         MACOSX_BUNDLE TRUE

@@ -6,6 +6,9 @@
 #include "mplib.h"
 
 #include <Runtime/platform.h>
+#ifdef TARGET_PC
+#include <pc/desktop_game.h>
+#endif
 
 #include <melee/lb/forward.h>
 #include <sysdolphin/baselib/forward.h>
@@ -918,6 +921,9 @@ void mpLibLoad(MapCollData* coll_data)
         DP_SET(mpLib_803BF760.joints, &mpLib_803BF738);
         coll_data = &mpLib_803BF760;
     }
+#ifdef TARGET_PC
+    coll_data = pc_desktop_prepare_collision(coll_data);
+#endif
     scale = Ground_801C0498();
     mpLib_80458868[0].right = F32_MAX;
     mpLib_80458868[0].top = F32_MAX;
@@ -988,11 +994,17 @@ void mpLibLoad(MapCollData* coll_data)
         }
     }
     mpLib_804D64B4 = coll_data;
+#ifdef TARGET_PC
+    pc_desktop_remap_collision(coll_data);
+#endif
     if (coll_data != NULL) {
         mpIsland_8005A728();
     } else {
         mpIsland_8005A6F8();
     }
+#ifdef TARGET_PC
+    pc_desktop_collision_loaded();
+#endif
     mpUncheckBounding();
 }
 
@@ -1641,6 +1653,12 @@ bool mpCheckFloor(float ax, float ay, float bx, float by, float y_offset,
             {
                 continue;
             }
+#ifdef TARGET_PC
+            if (pc_desktop_wallpaper_lines_connected(line_id_skip,
+                                                     line - groundCollLine)) {
+                continue;
+            }
+#endif
 
             if (!(line->flags & CollLine_Floor) ||
                 !(line->flags & LINE_FLAG_ENABLED) ||
@@ -1771,6 +1789,12 @@ bool mpCheckFloorRemap(float ax, float ay, float bx, float by, float y_offset,
             if (line_id_skip == line - groundCollLine) {
                 continue;
             }
+#ifdef TARGET_PC
+            if (pc_desktop_wallpaper_lines_connected(line_id_skip,
+                                                     line - groundCollLine)) {
+                continue;
+            }
+#endif
 
             if (!(line->flags & CollLine_Floor) ||
                 !(line->flags & LINE_FLAG_ENABLED) ||
@@ -4411,9 +4435,18 @@ bool mpLib_80054ED8(int line_id)
 static inline int mpLineGetNextFrom(MapLine* line, const u32* flags_base)
 {
     int result = line->next_id1;
+#ifdef TARGET_PC
+    (void) flags_base;
+#endif
 
     if (result != -1) {
+#ifdef TARGET_PC
+        /* CollLine contains a pointer; its native x64 stride is not the
+         * original GameCube two-word stride used by the matching build. */
+        u32 flags = groundCollLine[result].flags;
+#else
         u32 flags = flags_base[result * 2];
+#endif
 
         if ((flags & LINE_FLAG_ENABLED) && !(flags & LINE_FLAG_HIDDEN)) {
             CollVtx* v1 = &groundCollVtx[line->v1_idx];
@@ -4431,9 +4464,16 @@ static inline int mpLineGetNextFrom(MapLine* line, const u32* flags_base)
 static inline int mpLineGetPrevFrom(MapLine* line, const u32* flags_base)
 {
     int result = line->prev_id1;
+#ifdef TARGET_PC
+    (void) flags_base;
+#endif
 
     if (result != -1) {
+#ifdef TARGET_PC
+        u32 flags = groundCollLine[result].flags;
+#else
         u32 flags = flags_base[result * 2];
+#endif
 
         if ((flags & LINE_FLAG_ENABLED) && !(flags & LINE_FLAG_HIDDEN)) {
             CollVtx* v0 = &groundCollVtx[line->v0_idx];
@@ -4463,7 +4503,11 @@ bool mpLinesConnected(int start_id, int target_id)
 
     start_line = groundCollLine[start_id].inner;
     flags_base = &groundCollLine->flags;
+#ifdef TARGET_PC
+    kind = groundCollLine[start_id].flags & LINE_FLAG_KIND;
+#else
     kind = flags_base[start_id * 2] & LINE_FLAG_KIND;
+#endif
     line_id = mpLineGetNextFrom(start_line, flags_base);
     while (line_id != -1 &&
            kind == (groundCollLine[line_id].flags & LINE_FLAG_KIND))
@@ -4495,6 +4539,13 @@ void mpLib_800552B0(int joint_id, HSD_JObj* jobj, int z)
     s32 i;
     HSD_JObj* cur;
 
+#ifdef TARGET_PC
+    if (pc_desktop_collision_fixed()) {
+        /* The desktop platform stays fixed to OS pixels. Do not attach its
+         * remapped collision to Final Destination's animated visual model. */
+        return;
+    }
+#endif
     for (cur = HSD_JObjGetChild(jobj), i = 0; cur != NULL && i != z; i++) {
         if (!(cur->flags & CollJoint_TooFar)) {
             if (HSD_JObjGetChild(cur) != NULL) {
@@ -5791,11 +5842,26 @@ void mpLib_800587FC(HSD_GObj* gobj)
     grDynamicAttr_801CA224();
 }
 
+#ifdef TARGET_PC
+static void mpLib_DesktopPlatformProc(HSD_GObj* gobj)
+{
+    (void) gobj;
+    pc_desktop_update_platforms();
+}
+#endif
+
 void mpLib_80058820(void)
 {
     mpCollisionBox* box = mpLib_80458868;
     HSD_GObj* gobj = GObj_Create(1, 6, 0);
     HSD_ASSERT(6314, gobj);
+#ifdef TARGET_PC
+    if (pc_desktop_collision_fixed()) {
+        /* Native stage pause mask; before fighter CPU (2), physics (4) and
+         * map collision (6). Each platform delta is consumed only once. */
+        HSD_GObj_SetupProc(gobj, mpLib_DesktopPlatformProc, 1);
+    }
+#endif
     HSD_GObj_SetupProc(gobj, mpLib_800587FC, 4);
     box[0].right = 10000.0F;
     box[0].top = 10000.0F;

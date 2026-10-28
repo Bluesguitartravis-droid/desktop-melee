@@ -1,0 +1,32 @@
+[
+  {
+    "file": "LICENSE.dawn.txt",
+    "url": "https://raw.githubusercontent.com/encounter/dawn/1155e0ed531126f33a1279afa029349651ca1c93/LICENSE",
+    "bytes": 11829,
+    "sha256": "0493f897193af1796d5054659f45ec7d4c5af648fa67a99f01d30e55cc805abc"
+  },
+  {
+    "file": "LICENSE.nod-apache.txt",
+    "url": "https://raw.githubusercontent.com/encounter/nod/v2.0.0-alpha.12/LICENSE-APACHE",
+    "bytes": 11342,
+    "sha256": "fd363f1eb5135402a2e66f4a6173e6eff06daabe79d150acd7c669d33b985b4e"
+  },
+  {
+    "file": "LICENSE.nod-mit.txt",
+    "url": "https://raw.githubusercontent.com/encounter/nod/v2.0.0-alpha.12/LICENSE-MIT",
+    "bytes": 1065,
+    "sha256": "544ffe9befaefa6b59ab1fdde58789069ba7c1b65432bdea273a16b2117909b7"
+  },
+  {
+    "file": "LICENSE.directx-shader-compiler.txt",
+    "url": "https://raw.githubusercontent.com/microsoft/DirectXShaderCompiler/13730886e6a9019e4e0823746470f3ab75341d6b/LICENSE.TXT",
+    "bytes": 29241,
+    "sha256": "27a49e35d1da96eba18fba54bc882667ff0ff8c0254f16f2b6e165d605ba7df8"
+  },
+  {
+    "file": "NOTICE.directx-shader-compiler.txt",
+    "url": "https://raw.githubusercontent.com/microsoft/DirectXShaderCompiler/13730886e6a9019e4e0823746470f3ab75341d6b/ThirdPartyNotices.txt",
+    "bytes": 11256,
+    "sha256": "19512a5d0a015ef16d167272c164da49a604614a786206212a80ad486ed0be6d"
+  }
+]

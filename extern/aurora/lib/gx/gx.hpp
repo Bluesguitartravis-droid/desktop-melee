@@ -494,7 +494,7 @@ struct AttrConfig {
   bool nbt3 = false; // GX_NRM_NBT3
 };
 
-enum class DstAlphaMode : u8 { None, Replace, DualSource };
+enum class DstAlphaMode : u8 { None, Replace, DualSource, DesktopOpaque };
 
 struct ShaderConfig {
   u8 fogType = GX_FOG_NONE;

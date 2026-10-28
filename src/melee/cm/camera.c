@@ -2,6 +2,9 @@
 
 #include <Runtime/platform.h>
 #include <pc/pc.h>
+#ifdef TARGET_PC
+#include <pc/desktop_game.h>
+#endif
 
 #include <melee/ft/forward.h>
 #include <sysdolphin/baselib/forward.h>
@@ -1055,6 +1058,14 @@ void Camera_8002A4AC(HSD_GObj* gobj)
     CameraTransformState* transform = &game_camera.transform;
 
     cobj = GET_COBJ(gobj);
+#ifdef TARGET_PC
+    if (pc_desktop_apply_camera(cobj, transform)) {
+        pc_desktop_apply_camera(cm_804D6464, &game_camera.transform_copy);
+        game_camera.translation.x = game_camera.translation.y = 0.0f;
+        game_camera.x398_b2 = true; /* all stage rendering passes */
+        return;
+    }
+#endif
     switch (game_camera.mode) {
     case CAMERA_STANDARD:
     case CAMERA_FIXED:
@@ -3484,6 +3495,12 @@ void Camera_8002F274(void)
 
 void fn_8002F360(HSD_GObj* x)
 {
+#ifdef TARGET_PC
+    if (pc_desktop_apply_camera(GET_COBJ(x), &game_camera.transform)) {
+        pc_desktop_apply_camera(cm_804D6464, &game_camera.transform_copy);
+        return;
+    }
+#endif
     if (cm_803BCB18.callback[game_camera.mode]) {
         cm_803BCB18.callback[game_camera.mode](x);
     }
@@ -4033,6 +4050,12 @@ static void fn_800301D0(HSD_GObj* gobj, intptr_t arg1)
     Camera_8002A4AC(gobj);
     lbShadow_8000F38C(game_camera.x399_b7);
     if (HSD_CObjSetCurrent(cobj) != 0) {
+#ifdef TARGET_PC
+        /* Aurora clears the desktop target to transparent every frame. The
+         * original erase is a GX logic-copy quad, which would mark the whole
+         * desktop opaque under coverage-based compositing. */
+        if (!pc_desktop_collision_fixed()) {
+#endif
         if (!game_camera.x398_b5) {
             HSD_SetEraseColor(game_camera.background_color.r,
                               game_camera.background_color.g,
@@ -4041,6 +4064,9 @@ static void fn_800301D0(HSD_GObj* gobj, intptr_t arg1)
             HSD_SetEraseColor(0, 0, 0, 0xFF);
         }
         HSD_CObjEraseScreen(cobj, 1, 0, 0);
+#ifdef TARGET_PC
+        }
+#endif
         Ground_801C4FAC(cobj);
         HSD_LObjDeleteCurrentAll(NULL);
 

@@ -50,6 +50,7 @@
 #ifdef TARGET_PC
 #include "pc/slp.h"
 #include "pc/pc.h"
+#include "pc/desktop_game.h"
 #endif
 
 static u32 lbl_803D5620[] = {
@@ -2049,6 +2050,9 @@ void fn_8016E730(StartMeleeData* arg0)
     it_8026D018();
     lbAudioAx_8002785C();
     Stage_8022524C();
+#ifdef TARGET_PC
+    pc_desktop_stage_ready();
+#endif
     Camera_80030730(Ground_801C20D0());
     fn_8016E2BC();
     Stage_80225298();
@@ -2078,6 +2082,9 @@ void fn_8016E730(StartMeleeData* arg0)
 void gm_Scene_Vs_OnEnter(void* arg0)
 {
     StartMeleeData* tmp = arg0;
+#ifdef TARGET_PC
+    pc_desktop_begin_match(tmp);
+#endif
     fn_8016E730(tmp);
     if (tmp->rules.x1_2) {
         ifStatus_802F6EA4(8, -1, -1, 0, fn_8016B7B4, fn_8016B7F8);
@@ -2086,6 +2093,9 @@ void gm_Scene_Vs_OnEnter(void* arg0)
     }
     ifTime_CreateTimers();
     ifStatus_802F665C(tmp->rules.x0_3);
+#ifdef TARGET_PC
+    pc_desktop_match_loaded();
+#endif
 }
 
 struct EndMeleeData {
@@ -2120,6 +2130,7 @@ void gm_Scene_Vs_OnExit(void* user_data)
     int i;
 
 #ifdef TARGET_PC
+    pc_desktop_end_match();
     pc_slp_match_end();
 #endif
     if (controller.state.match_over == 0) {

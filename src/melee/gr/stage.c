@@ -1,4 +1,7 @@
 #include "stage.h"
+#ifdef TARGET_PC
+#include <pc/desktop_game.h>
+#endif
 
 #include "ground.h"
 #include "types.h"
@@ -213,6 +216,11 @@ bool Stage_80224DC8(s32 arg)
 
 void Stage_80224E38(Vec3* arg0, s32 arg1)
 {
+#ifdef TARGET_PC
+    if (pc_desktop_spawn_position(arg1, true, &arg0->x, &arg0->y, &arg0->z)) {
+        return;
+    }
+#endif
     Ground_801C2D24(arg1 + 4, arg0);
 }
 
@@ -223,6 +231,12 @@ void Stage_80224E64(enum_t arg0, Vec3* arg_vec)
     f32 counter_f;
     Vec3 internal_vec;
 
+#ifdef TARGET_PC
+    if (pc_desktop_spawn_position(arg0, false, &arg_vec->x, &arg_vec->y,
+                                  &arg_vec->z)) {
+        return;
+    }
+#endif
     if (arg0 == -1) {
         /// @todo Needs to be #HSD_ASSERT. Also remove fake zero-byte padding.
         __assert("stage.c", 360, "no!=St_Player_InitPos_None\0\0\0\0");

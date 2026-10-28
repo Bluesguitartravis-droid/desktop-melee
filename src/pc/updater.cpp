@@ -626,6 +626,14 @@ bool http_download_file_curl(
 }  // namespace
 
 void check_for_updates_async(bool include_prereleases) {
+#if defined(DESKTOP_MELEE_BUILD)
+    /* Upstream release assets do not contain this fork's desktop support. */
+    (void) include_prereleases;
+    std::lock_guard lock(g_updater_mutex);
+    g_updater_state.status = Status::Idle;
+    g_updater_state.message = "Desktop Melee preview updates are supplied separately.";
+    return;
+#endif
     {
         std::lock_guard lock(g_updater_mutex);
         if (g_updater_state.status == Status::Checking ||
@@ -714,6 +722,9 @@ void check_for_updates_async(bool include_prereleases) {
 }
 
 void start_download_async() {
+#if defined(DESKTOP_MELEE_BUILD)
+    return;
+#endif
 #if !defined(_WIN32)
     std::string download_url;
     std::string asset_name;
@@ -847,6 +858,10 @@ void open_downloaded_location() {
 }
 
 bool apply_update_and_restart(std::string& error) {
+#if defined(DESKTOP_MELEE_BUILD)
+    error = "Use a Desktop Melee release to update this preview.";
+    return false;
+#endif
     std::string new_path;
     bool restartable = false;
     {

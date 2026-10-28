@@ -23,6 +23,7 @@ extern void browser_yield(void);
 #include <string.h>
 
 #include "pc/pc.h"
+#include "pc/desktop_host.h"
 #include "pc/launcher.h"
 #include "pc/touch.h"
 #include "pc/widescreen.h"
@@ -79,6 +80,28 @@ static void pc_pace_wait(u64 ns) {
 #define PC_PACE_ALWAYS 0
 #define pc_pace_wait SDL_DelayPrecise
 #endif
+
+static void pc_frame_input(const AuroraEvent* event) {
+    while (event != NULL && event->type != AURORA_NONE) {
+        if (event->type == AURORA_EXIT) {
+            pc_exit_requested = true;
+        } else if (event->type == AURORA_SDL_EVENT) {
+            if (event->sdl.type == SDL_EVENT_KEY_DOWN &&
+                event->sdl.key.scancode == SDL_SCANCODE_F1 && !event->sdl.key.repeat)
+                pc_menu_toggle();
+            pc_menu_event(&event->sdl);
+            pc_keyboard_event(&event->sdl);
+            pc_touch_event(&event->sdl);
+        }
+        ++event;
+    }
+    pc_desktop_host_tick();
+    pc_menu_update();
+    /* Nothing draws while the settings menu pauses the game, so hold the
+     * last frame instead of clearing the EFB to black beneath the menu. */
+    aurora_preserve_frame_buffer(pc_menu_is_open());
+    pc_keyboard_apply();
+}
 
 void pc_frame_boundary(void) {
 #ifdef __ANDROID__
@@ -212,24 +235,7 @@ void pc_frame_boundary(void) {
             pc_log_line("net timing: aurora_update %.1f ms at retrace %u frame %d", elapsed / 1e6,
                 s_retrace_count, pc_net_frame());
     }
-    while (event != NULL && event->type != AURORA_NONE) {
-        if (event->type == AURORA_EXIT) {
-            pc_exit_requested = true;
-        } else if (event->type == AURORA_SDL_EVENT) {
-            if (event->sdl.type == SDL_EVENT_KEY_DOWN &&
-                event->sdl.key.scancode == SDL_SCANCODE_F1 && !event->sdl.key.repeat)
-                pc_menu_toggle();
-            pc_menu_event(&event->sdl);
-            pc_keyboard_event(&event->sdl);
-            pc_touch_event(&event->sdl);
-        }
-        ++event;
-    }
-    pc_menu_update();
-    /* Nothing draws while the overlay pauses the game, so hold the last
-     * frame instead of clearing the EFB to black underneath the menu. */
-    aurora_preserve_frame_buffer(pc_menu_is_open());
-    pc_keyboard_apply();
+    pc_frame_input(event);
     aurora_trace_end(update_trace);
     /* MELEE_EXIT_AFTER_FRAMES=<n>: bound a scripted run without needing
      * synthetic input, which is unreliable under Xwayland. Setting
@@ -324,14 +330,14 @@ void pc_frame_boundary(void) {
                 pc_log_line("net timing: aurora_update %.1f ms at retrace %u frame %d",
                     elapsed / 1e6, s_retrace_count, pc_net_frame());
         }
-        while (event != NULL && event->type != AURORA_NONE) {
-            if (event->type == AURORA_EXIT) {
-                pc_net_match_stop();
-                pc_net_disconnect();
-                pc_lan_stop();
-                exit(0);
-            }
-            ++event;
+        /* Commands must remain live when the ordinary settings window is
+         * minimized; no GPU frame is active during this retry loop. */
+        pc_frame_input(event);
+        if (pc_exit_requested) {
+            pc_net_match_stop();
+            pc_net_disconnect();
+            pc_lan_stop();
+            exit(0);
         }
 #ifdef __EMSCRIPTEN__
         emscripten_sleep(16);

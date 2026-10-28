@@ -1,4 +1,5 @@
 #include "window.hpp"
+#include "desktop.hpp"
 
 #ifdef AURORA_ENABLE_GX
 #include "imgui.hpp"
@@ -308,6 +309,7 @@ void process_event(SDL_Event& event) {
 
 const AuroraEvent* poll_events() {
   ZoneScoped;
+  desktop::pump();
   g_events.clear();
   g_eventStrings.clear();
 
@@ -431,7 +433,7 @@ void destroy_window() {
 }
 
 void show_window() {
-  if (g_window != nullptr) {
+  if (g_window != nullptr && !desktop::active()) {
     TRY_WARN(SDL_ShowWindow(g_window), "Failed to show window: {}", SDL_GetError());
   }
 }
@@ -480,6 +482,8 @@ void shutdown() {
 }
 
 AuroraWindowSize get_window_size() {
+  AuroraWindowSize desktopSize{};
+  if (desktop::window_size(desktopSize)) return desktopSize;
   int width = 0;
   int height = 0;
   int native_fb_w = 0;
@@ -545,6 +549,7 @@ SDL_Window* get_sdl_window() { return g_window; }
 SDL_Renderer* get_sdl_renderer() { return g_renderer; }
 
 bool is_paused() noexcept {
+  if (desktop::active()) return false;
   if (!is_presentable()) {
     return true;
   }
@@ -561,6 +566,7 @@ bool is_paused() noexcept {
 }
 
 bool is_presentable() noexcept {
+  if (desktop::active()) return true;
   if (g_window == nullptr || g_backgrounded.load(std::memory_order_acquire) ||
       !g_surfaceReady.load(std::memory_order_acquire)) {
     return false;
