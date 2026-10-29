@@ -209,7 +209,11 @@ extern "C" void pc_desktop_host_shutdown(void) {
     if (!initialized)
         return;
     initialized = false;
+#if defined(__ANDROID__)
+    return;
+#else
     aurora_desktop_enable(false);
+#endif
 #if defined(__ANDROID__)
     return;
 #elif defined(_WIN32)
