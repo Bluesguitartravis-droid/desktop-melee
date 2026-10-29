@@ -1,0 +1,56 @@
+name: Publish Desktop Melee 0.1.9
+on:
+  push:
+    branches: [master]
+    paths: [".github/workflows/publish-019.yml"]
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: github.repository == 'Bluesguitartravis-droid/desktop-melee'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: 053bbeb04898f332de3a227de041e40b574a0fb1
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify release source
+        run: |
+          test "$(git rev-parse HEAD)" = "053bbeb04898f332de3a227de041e40b574a0fb1"
+          test "$(tr -d '\r\n' < DESKTOP_VERSION)" = "0.1.9"
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config python3 git zip cabextract curl bzip2 xz-utils mingw-w64 nsis
+          sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+          sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+      - name: Regression tests
+        run: |
+          bash tools/test_desktop_game.sh
+          bash tools/test_desktop_monitor.sh
+          bash tools/test_desktop_collision.sh
+          bash tools/test_desktop_fighter.sh
+          bash tools/test_desktop_update.sh
+          python3 tools/test_desktop_release.py
+      - name: Build Windows package
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: '4'
+        run: bash tools/build_desktop_windows.sh
+      - name: Package source and checksums
+        run: |
+          python3 tools/package_desktop_source.py --tag desktop-v0.1.9 --binary-archive dist/Desktop-Melee-Windows-x64.zip --installer dist/Desktop-Melee-Setup-x64.exe --output-dir dist
+          cp docs/DESKTOP_WINDOWS_019.md dist/RELEASE-NOTES.md
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dist
+          sha256sum --check SHA256SUMS
+          if gh release view desktop-v0.1.9 >/dev/null 2>&1; then
+            echo "Release already exists"; exit 1
+          fi
+          gh release create desktop-v0.1.9 --repo "$GITHUB_REPOSITORY" --target 053bbeb04898f332de3a227de041e40b574a0fb1 --draft --title "Desktop Melee 0.1.9 - All-monitor arena" --notes-file RELEASE-NOTES.md
+          gh release upload desktop-v0.1.9 --repo "$GITHUB_REPOSITORY" Desktop-Melee-Setup-x64.exe Desktop-Melee-Windows-x64.zip Desktop-Melee-Source-0.1.9.zip SHA256SUMS
+          gh release edit desktop-v0.1.9 --repo "$GITHUB_REPOSITORY" --draft=false --latest
