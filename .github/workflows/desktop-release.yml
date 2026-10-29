@@ -8,7 +8,7 @@ on:
       tag:
         description: 'Release tag; must match DESKTOP_VERSION in the selected ref'
         required: true
-        default: desktop-v0.1.7
+        default: desktop-v0.1.8
         type: string
 
 permissions:
@@ -68,9 +68,10 @@ jobs:
           sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
           sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
 
-      - name: Native game, terrain and updater regressions
+      - name: Native game, monitor, terrain and updater regressions
         run: |
           bash tools/test_desktop_game.sh
+          bash tools/test_desktop_monitor.sh
           bash tools/test_desktop_collision.sh
           bash tools/test_desktop_fighter.sh
           bash tools/test_desktop_update.sh
@@ -142,8 +143,6 @@ jobs:
         run: |
           test "$(git rev-parse HEAD)" = "$RELEASE_COMMIT"
           test "$RELEASE_TAG" = "desktop-v$(tr -d '\r\n' < DESKTOP_VERSION)"
-          # A manual dispatch may create a new tag only at the tested commit.
-          # Re-fetch to catch a tag created while the build was running.
           git fetch --force --tags origin
           if tag_commit="$(git rev-parse --verify --quiet "refs/tags/${RELEASE_TAG}^{commit}")"; then
             test "$tag_commit" = "$RELEASE_COMMIT"
@@ -154,8 +153,7 @@ jobs:
             echo '::error::A release with this tag already exists. Published assets are never overwritten; inspect any unfinished draft or use a new version.'
             exit 1
           fi
-          # Keep the release hidden from the launcher's update checker until
-          # all assets are present. Do not replace existing release assets.
+          # Keep the release hidden until all assets are present.
           gh release create "$RELEASE_TAG" --target "$RELEASE_COMMIT" \
             --draft --title "Desktop Melee ${RELEASE_VERSION}" \
             --notes-file RELEASE-NOTES.md

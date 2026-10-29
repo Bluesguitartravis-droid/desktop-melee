@@ -5,7 +5,7 @@ is the main stage and open window tops become moving platforms. The desktop
 stays clickable underneath the fighters. The Windows build also offers
 experimental wallpaper terrain.
 
-**Windows x64: 0.1.6 · Linux x86_64: 0.1.7 Linux preview 1.**
+**Windows x64: 0.1.8 · Linux x86_64: 0.1.7 Linux preview 1.**
 
 ## Download and play on Windows
 
@@ -13,22 +13,33 @@ experimental wallpaper terrain.
 
 [All releases and checksums](https://github.com/Bluesguitartravis-droid/desktop-melee/releases)
 · [Full setup, controls and troubleshooting](docs/DESKTOP_MELEE.md)
+· [Four fighters and monitor selection](docs/DESKTOP_WINDOWS_018.md)
 
 1. Download and run **Desktop-Melee-Setup-x64.exe**.
 2. Open **Desktop Melee** from its shortcut.
 3. Select your own local **Melee USA 1.02** disc image.
-4. Choose **Play against a CPU**, **Watch two CPUs**, or **Two local players**.
-5. Start a desktop match. Use a controller while other apps remain clickable.
+4. Choose a **Display** and **2, 3 or 4 fighters**.
+5. Choose **Watch CPUs**, **Player 1 vs. CPUs**, **Local players**, or a custom mix.
+6. Start a desktop match. Use a controller while other apps remain clickable.
+
+Each fighter has a character, costume, and CPU/controller-port selection.
+Human fighters need different controller ports. Matches are free-for-all;
+team battles are not added in this release. The selected display supplies the
+arena, floor, window platforms and wallpaper. No change to Windows' primary
+display setting is required. Stop the match before changing display selection.
 
 The single installer includes the engine, DLLs and resources and installs them
 together for your Windows account. No administrator access is required. An
 optional portable ZIP is also available; extract that entire archive and open
-its **DesktopMelee.exe**. The source ZIP is for developers. **No disc image or extracted game assets are supplied.** Your
-disc remains on your own computer and is not uploaded.
+its **DesktopMelee.exe**. The source ZIP is for developers. **No disc image or
+extracted game assets are supplied.** Your disc remains on your own computer
+and is not uploaded.
 
-Use a primary display with a visible bottom taskbar for the first run. This
-package targets 64-bit Windows 10 (1903 or newer) and Windows 11 on Intel/AMD
-PCs.
+Use a visible, fixed bottom taskbar for the first run. A screen without a usable
+bottom taskbar gets a floor near the bottom. Only one arena display is supported
+at a time; spanning monitors and separate simultaneous matches are not included.
+This package targets 64-bit Windows 10 (1903 or newer) and Windows 11 on Intel/AMD
+PCs. Live multi-monitor and controller behavior still need testing on Windows.
 
 ## Linux and Steam Deck
 
@@ -51,7 +62,9 @@ implemented in this preview. Linux wallpaper terrain is also pending.
 
 Linux native builds, collision regressions and virtual-X11 integration
 checks are automated. This preview has not been certified on Steam Deck
-hardware or tested through a real match there.
+hardware or tested through a real match there. The published Linux and
+Android builds are unchanged by the Windows 0.1.8 update; their new feature
+ports are deferred until the PC version has been tested.
 
 ## Startup updates
 
@@ -88,12 +101,14 @@ The check sends no game image, wallpaper, window contents, saves or logs.
   into connected native floor segments. Broad hills and contrasting pixel art
   work better than busy photographs. Covered terrain is hidden by app windows.
 - **Native match behavior:** CPU opponents, stocks, rematches, character and
-  costume choices, controller ports and UCF settings.
+  costume choices, controller ports and UCF settings. Windows supports 2-4
+  fighters and selecting the arena display.
 
 Wallpaper recognition is a bounded heuristic. It does not create solid walls,
 ceilings or hazards, and it cannot guarantee every ledge is reachable. The
-0.1.6 build includes continuous hill contours and a correction that lets native
-floor collision resolve before a desktop bottom knockout is considered.
+0.1.6 changes for continuous hill contours and native floor collision before
+bottom knockout checks remain included in 0.1.8. Multi-monitor wallpaper
+Tile/Span placement remains unsupported.
 
 ## Controls
 
@@ -123,12 +138,12 @@ The main output is `dist/Desktop-Melee-Setup-x64.exe`, with an optional
 (`makensis`).
 
 To publish, commit a new `DESKTOP_VERSION`, then run **Actions → Desktop
-Windows release** with its matching tag, such as `desktop-v0.1.7`. Pushing that
-tag also works. The workflow runs regression checks, builds Windows x64, and
-publishes the Windows installer, portable ZIP, matching source ZIP and SHA-256
-checksums.
-The built-in workflow token is used by GitHub Actions; no token is included in
-the application. The inherited upstream build and Pages workflows are manual.
+Windows release** with its matching, unpublished tag. Pushing that tag also
+works. The workflow runs regression checks, builds Windows x64, and publishes
+the installer, portable ZIP, matching source ZIP and SHA-256 checksums.
+Existing release assets are not overwritten. The built-in workflow token is
+used by GitHub Actions; no token is included in the application. The inherited
+upstream build and Pages workflows are manual.
 
 For Linux, run `bash tools/build_desktop_linux.sh`. Its outputs are an
 AppImage and portable tarball under `dist/linux`. The separate **Desktop
@@ -140,10 +155,11 @@ prerelease with matching source and checksums. See the
 ## Status and reporting problems
 
 The window-platform preview has been run successfully by the initial tester.
-The newer terrain, throw-ordering and updater changes have automated checks
-and a Windows cross-build, but their live behavior still needs confirmation
-on Windows. This is an experimental project; controller compatibility,
-presentation performance and arbitrary desktop layouts need wider testing.
+Four-fighter match setup, spawn/respawn positions, CPU targeting and display
+geometry have automated regressions, alongside the earlier terrain and
+throw-ordering fixes. The Windows binaries are cross-compiled; live behavior,
+controller enumeration, performance and arbitrary desktop layouts still need
+wider Windows testing. This is an experimental project.
 
 Use this repository's issue tracker for Desktop Melee issues. Include the
 relevant section of `desktop-melee.log`, operating system/GPU details and
