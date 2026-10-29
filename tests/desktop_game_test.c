@@ -117,6 +117,23 @@ void HSD_CObjSetOrtho(HSD_CObj* camera, float top, float bottom, float left,
     camera->projection_param.ortho.left = left;
     camera->projection_param.ortho.right = right;
 }
+int HSD_CObjGetProjectionType(HSD_CObj* camera) { return camera->projection_type; }
+void HSD_CObjGetOrtho(HSD_CObj* camera, float* top, float* bottom, float* left, float* right)
+{
+    *top = camera->projection_param.ortho.top;
+    *bottom = camera->projection_param.ortho.bottom;
+    *left = camera->projection_param.ortho.left;
+    *right = camera->projection_param.ortho.right;
+}
+void HSD_CObjSetFrustum(HSD_CObj* camera, float top, float bottom, float left, float right)
+{
+    camera->projection_type = PROJ_FRUSTUM;
+    camera->projection_param.frustum.top = top;
+    camera->projection_param.frustum.bottom = bottom;
+    camera->projection_param.frustum.left = left;
+    camera->projection_param.frustum.right = right;
+}
+void HSD_CObjSetFov(HSD_CObj* camera, float fov) { camera->projection_param.perspective.fov = fov; }
 void HSD_CObjSetFlags(HSD_CObj* camera, u32 flags) { camera->flags |= flags; }
 void HSD_CObjSetInterest(HSD_CObj* camera, Vec3* interest)
 {
@@ -344,6 +361,34 @@ static void check_four_player_targeting(void)
     unsetenv("MELEE_DESKTOP_PLAYERS");unsetenv("MELEE_DESKTOP_WATCH");
     pc_desktop_configure_match(&start);
     CHECK(pc_desktop_player_count()==2);
+}
+
+static void check_hud_camera_scale(void)
+{
+    HSD_CObj hud = {0};
+    supplied_geometry = (AuroraDesktopGeometry) {0,0,5760,2160,0,2100,1920,2160};
+    geometry_available = true;
+    reset_fixture(1);
+    StartMeleeData start = {0};
+    start.rules.stkind = St_Kind_Last;
+    pc_desktop_begin_match(&start);
+    pc_desktop_remap_collision(&disc_collision);
+    pc_desktop_stage_ready();
+
+    hud.projection_type = PROJ_ORTHO;
+    hud.projection_param.ortho = (typeof(hud.projection_param.ortho)){24,-24,-32,32};
+    CHECK(pc_desktop_apply_hud_camera(&hud));
+    near_value(hud.projection_param.ortho.top, 48.0f);
+    near_value(hud.projection_param.ortho.bottom, -48.0f);
+    near_value(hud.projection_param.ortho.left, -64.0f);
+    near_value(hud.projection_param.ortho.right, 64.0f);
+
+    hud.projection_type = PROJ_PERSPECTIVE;
+    hud.projection_param.perspective.fov = 30.0f;
+    CHECK(pc_desktop_apply_hud_camera(&hud));
+    CHECK(hud.projection_param.perspective.fov > 30.0f);
+
+    pc_desktop_end_match();
 }
 
 static void check_geometry(AuroraDesktopGeometry geometry, float scale)
@@ -576,6 +621,7 @@ static void check_roster_options(void)
 int main(void)
 {
     check_options();
+    check_hud_camera_scale();
     check_roster_options();
     /* User's exact geometry; short/high-DPI bars; fallback 48px platform;
      * and a tall bar where the original ten-unit safety band still fits. */
