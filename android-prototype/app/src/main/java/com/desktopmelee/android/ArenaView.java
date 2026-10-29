@@ -13,7 +13,7 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 
-/** Diagnostic placeholders only. No Melee engine, fighters or assets. */
+/** Four-slot diagnostic arena. Native bridge is loaded separately; no Melee engine/assets yet. */
 public final class ArenaView extends View implements InputManager.InputDeviceListener {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -22,7 +22,8 @@ public final class ArenaView extends View implements InputManager.InputDeviceLis
     private final boolean watch;
     private final Runnable release;
     private boolean running;
-    private float x = .35f, other = .70f, height, velocity, elapsed;
+    private float x = .24f, height, velocity, elapsed;
+    private final float[] cpuX = {.43f, .63f, .82f};
     private long previous, flashUntil;
     private int deviceId = -1;
     private String lastInput = "Waiting for gamepad input";
@@ -33,7 +34,10 @@ public final class ArenaView extends View implements InputManager.InputDeviceLis
             float dt = Math.min(.05f, Math.max(0, (now - previous) / 1000f)); previous = now; elapsed += dt;
             if (watch) x = .35f + (float)Math.sin(elapsed * 1.7f) * .24f;
             else x = Math.max(.04f, Math.min(.96f, x + input.horizontal() * .65f * dt));
-            other = .68f + (float)Math.sin(elapsed * 1.1f) * .18f;
+            for (int i = 0; i < cpuX.length; ++i) {
+                float center = .42f + i * .20f;
+                cpuX[i] = center + (float)Math.sin(elapsed * (1.05f + i * .17f) + i) * .075f;
+            }
             if (height > 0 || velocity > 0) { velocity -= 1200 * dt; height = Math.max(0, height + velocity * dt); }
             invalidate(); postOnAnimation(this);
         }
@@ -41,7 +45,7 @@ public final class ArenaView extends View implements InputManager.InputDeviceLis
     ArenaView(Context context, boolean watch, Runnable release) {
         super(context); this.watch = watch; this.release = release; devices = context.getSystemService(InputManager.class);
         setFocusable(!watch); setFocusableInTouchMode(!watch);
-        setContentDescription("Controller overlay test with two colored placeholders, not Melee");
+        setContentDescription("Controller overlay test with four colored placeholders, not Melee");
     }
     private float dp(float n) { return n * getResources().getDisplayMetrics().density; }
     public void begin() { if (running) return; running = true; previous = SystemClock.uptimeMillis(); devices.registerInputDeviceListener(this, handler); postOnAnimation(loop); }
@@ -52,11 +56,15 @@ public final class ArenaView extends View implements InputManager.InputDeviceLis
         paint.setColor(Color.argb(200, 35, 190, 225)); canvas.drawRect(0, floor, w, floor + dp(3), paint);
         paint.setColor(SystemClock.uptimeMillis() < flashUntil ? Color.WHITE : Color.rgb(246, 198, 60));
         canvas.drawCircle(w * x, floor - radius - dp(height), radius, paint);
-        paint.setColor(Color.rgb(205, 74, 122)); canvas.drawCircle(w * other, floor - radius, radius, paint);
+        int[] cpuColors = {Color.rgb(205,74,122), Color.rgb(92,184,92), Color.rgb(155,104,210)};
+        for (int i=0;i<cpuX.length;++i) {
+            paint.setColor(cpuColors[i]);
+            canvas.drawCircle(w * cpuX[i], floor - radius, radius, paint);
+        }
         paint.setColor(Color.argb(180, 15, 20, 30)); canvas.drawRect(dp(10), dp(68), Math.min(w - dp(10), dp(620)), dp(170), paint);
         paint.setColor(Color.WHITE); paint.setTextSize(dp(14));
         canvas.drawText(watch ? "WATCH: placeholder animation / no input capture" : "PLAY: stick or D-pad / A jump / X flash / B or Back = Watch", dp(18), dp(91), paint);
-        canvas.drawText("NO MELEE ENGINE YET - overlay and controller test only", dp(18), dp(116), paint);
+        canvas.drawText("4 SLOTS + NATIVE C++ BRIDGE - Melee engine not integrated yet", dp(18), dp(116), paint);
         canvas.drawText(watch ? "Stop from the app or notification" : "Focus: " + hasWindowFocus() + " | " + lastInput, dp(18), dp(145), paint);
     }
     @Override public boolean onGenericMotionEvent(MotionEvent event) {
