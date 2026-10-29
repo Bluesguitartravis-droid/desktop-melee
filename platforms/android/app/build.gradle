@@ -9,14 +9,14 @@ def releaseKeystore = System.getenv('MELEE_KEYSTORE_FILE') ?
     file(System.getenv('MELEE_KEYSTORE_FILE')) : rootProject.file('melee-release.keystore')
 
 android {
-    namespace 'dev.melee.game'
+    namespace 'com.desktopmelee.android'
     compileSdk 34
 
     defaultConfig {
-        applicationId 'dev.melee.game'
+        applicationId 'com.desktopmelee.android'
         minSdk 26
         targetSdk 34
-        versionCode 14
+        versionCode 4
         versionName System.getenv('MELEE_VERSION') ?: rootProject.file('../../VERSION').text.trim()
 
         ndk {
