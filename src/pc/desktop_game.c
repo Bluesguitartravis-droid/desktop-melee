@@ -939,10 +939,11 @@ bool pc_desktop_apply_hud_camera(HSD_CObj* camera)
         return true;
     }
     case PROJ_PERSPECTIVE: {
-        const float radians = camera->projection_param.perspective.fov *
-                              (3.14159265358979323846f / 180.0f);
-        const float widened = 2.0f * atanf(tanf(0.5f * radians) / scale);
-        HSD_CObjSetFov(camera, widened * (180.0f / 3.14159265358979323846f));
+        float fov = camera->projection_param.perspective.fov / scale;
+        if (fov > 150.0f) {
+            fov = 150.0f;
+        }
+        HSD_CObjSetFov(camera, fov);
         return true;
     }
     default:
