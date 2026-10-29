@@ -39,7 +39,7 @@ public final class MainActivity extends Activity {
             return insets;
         });
         TextView title = new TextView(this);
-        title.setText("Desktop Melee / Android prototype 0.0.2");
+        title.setText("Desktop Melee / Android prototype 0.0.3");
         title.setTextSize(22); root.addView(title);
         TextView details = new TextView(this);
         details.setText("Four placeholder fighters now test the 4-player layout and controller path. This is still NOT Melee gameplay; no disc is needed.\n\nWatch: four CPU placeholders animate while the home screen stays usable.\nPlay: P1 is controlled by the Odin; the other three remain CPU placeholders. Stick / D-pad moves P1, A jumps, X flashes. Back or B returns to Watch.\n\nNative bridge: " + nativeBridgeStatus() + "\n\nThis build also loads a native C++ library inside the APK. That is the integration path we will use for the actual Melee engine port.");
