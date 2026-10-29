@@ -28,7 +28,7 @@ jobs:
           accept-android-sdk-licenses: false
           log-accepted-android-sdk-licenses: false
       - name: Install Android SDK
-        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018' 'cmake;3.22.1'
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
         with:
           gradle-version: '8.9'
@@ -46,7 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir deliver
-          cp android-prototype/app/build/outputs/apk/debug/app-debug.apk deliver/Desktop-Melee-Android-Overlay-Test-0.0.1.apk
+          cp android-prototype/app/build/outputs/apk/debug/app-debug.apk deliver/Desktop-Melee-Android-Prototype-0.0.2.apk
           SDK_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
           "$SDK_TOOLS/apksigner" verify --verbose --print-certs deliver/*.apk > deliver/APK-VERIFICATION.txt
           "$SDK_TOOLS/aapt" dump badging deliver/*.apk >> deliver/APK-VERIFICATION.txt
@@ -96,9 +96,9 @@ jobs:
           set -euo pipefail
           cd deliver
           sha256sum --check SHA256SUMS
-          TAG="android-overlay-v0.0.1-build.${BUILD_NUMBER}"
-          printf '# Android overlay/input test 0.0.1\n\nDownload **Desktop-Melee-Android-Overlay-Test-0.0.1.apk** and install directly on Android, not inside DroidDeck.\n\n**NOT playable Melee.** Two colored placeholders test home-screen transparency and controller focus. Watch mode attempts touch passthrough. Play mode intentionally captures input; left stick/D-pad moves, A jumps, X flashes. Back/B or WATCH releases focus, and STOP/notification ends the overlay.\n\nRequires Android 10+ and explicit overlay and notification permissions. No disc, root, accessibility service, network or storage permission. Debug-signed disposable test build; future debug builds may require uninstall/reinstall. No built-in updater.\n\nCompilation, input-state checks, Android lint and APK signature verification passed. Odin hardware testing remains outstanding. Windows and Linux releases are unchanged.\n\nExact source commit: `%s`. Source and SHA-256 hashes are included.\n' "$BUILD_SHA" > RELEASE-NOTES.md
+          TAG="android-prototype-v0.0.2-build.${BUILD_NUMBER}"
+          printf '# Android prototype 0.0.2\n\nDownload **Desktop-Melee-Android-Prototype-0.0.2.apk** and install directly on Android, not inside DroidDeck.\n\n**NOT playable Melee.** Four placeholder fighters test home-screen transparency, four-slot layout and controller focus. The APK also loads a native C++ bridge as the foundation for the future engine port. Watch mode attempts touch passthrough. Play mode intentionally captures input; left stick/D-pad moves, A jumps, X flashes. Back/B or WATCH releases focus, and STOP/notification ends the overlay.\n\nRequires Android 10+ and explicit overlay and notification permissions. No disc, root, accessibility service, network or storage permission. Debug-signed disposable test build; future debug builds may require uninstall/reinstall. No built-in updater.\n\nCompilation, input-state checks, Android lint and APK signature verification passed. Odin hardware testing remains outstanding. Windows and Linux releases are unchanged.\n\nExact source commit: `%s`. Source and SHA-256 hashes are included.\n' "$BUILD_SHA" > RELEASE-NOTES.md
           if gh release view "$TAG" >/dev/null 2>&1; then echo 'Release already exists; refusing overwrite'; exit 1; fi
-          gh release create "$TAG" --draft --prerelease --latest=false --target "$BUILD_SHA" --title "Android overlay/input test 0.0.1 (build ${BUILD_NUMBER})" --notes-file RELEASE-NOTES.md
+          gh release create "$TAG" --draft --prerelease --latest=false --target "$BUILD_SHA" --title "Android prototype 0.0.2 (build ${BUILD_NUMBER})" --notes-file RELEASE-NOTES.md
           gh release upload "$TAG" Desktop-Melee-Android-Overlay-Test-0.0.1.apk Desktop-Melee-Android-Overlay-Test-Source.zip APK-VERIFICATION.txt ANDROID-TEST-README.md SHA256SUMS
           gh release edit "$TAG" --draft=false --prerelease --latest=false
