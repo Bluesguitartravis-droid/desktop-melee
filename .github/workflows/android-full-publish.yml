@@ -55,7 +55,7 @@ jobs:
             echo "Release $TAG already exists; refusing to replace an existing release."
             exit 1
           fi
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target a1eb3704da6da121834c1d3abd6d0a0ed80bd830 --prerelease --latest=false \
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target android-full-desktop --prerelease --latest=false \
             --title "Desktop Melee Android Full 0.1.4 - overlay test preview 5" \
             --notes-file RELEASE-NOTES.md \
             Desktop-Melee-Android-Full-0.1.4.apk APK-VERIFICATION.txt SHA256SUMS
