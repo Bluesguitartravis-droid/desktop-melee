@@ -277,6 +277,49 @@ bool android_transparent_surface() noexcept {
 #endif
 }
 
+wgpu::CompositeAlphaMode select_surface_alpha_mode(const wgpu::SurfaceCapabilities& capabilities,
+                                                   bool transparentRequested) noexcept {
+  const auto supports = [&capabilities](wgpu::CompositeAlphaMode mode) {
+    for (size_t i = 0; i < capabilities.alphaModeCount; ++i) {
+      if (capabilities.alphaModes[i] == mode) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  Log.info("Surface reports {} composite alpha mode(s)", capabilities.alphaModeCount);
+  for (size_t i = 0; i < capabilities.alphaModeCount; ++i) {
+    Log.info("Surface alpha capability[{}] = {}", i,
+             magic_enum::enum_name(capabilities.alphaModes[i]));
+  }
+
+  if (!transparentRequested) {
+    return supports(wgpu::CompositeAlphaMode::Opaque)
+               ? wgpu::CompositeAlphaMode::Opaque
+               : wgpu::CompositeAlphaMode::Auto;
+  }
+
+  if (supports(wgpu::CompositeAlphaMode::Premultiplied)) {
+    return wgpu::CompositeAlphaMode::Premultiplied;
+  }
+  if (supports(wgpu::CompositeAlphaMode::Unpremultiplied)) {
+    return wgpu::CompositeAlphaMode::Unpremultiplied;
+  }
+  if (supports(wgpu::CompositeAlphaMode::Inherit)) {
+    return wgpu::CompositeAlphaMode::Inherit;
+  }
+
+#if defined(__ANDROID__)
+  Log.warn("Transparent Android surface requested, but no transparent composite alpha mode is supported; "
+           "falling back to opaque presentation");
+  setenv("MELEE_ANDROID_TRANSPARENT", "0", 1);
+#endif
+  return supports(wgpu::CompositeAlphaMode::Opaque)
+             ? wgpu::CompositeAlphaMode::Opaque
+             : wgpu::CompositeAlphaMode::Auto;
+}
+
 wgpu::PresentMode select_present_mode(const wgpu::SurfaceCapabilities& capabilities) noexcept {
   const auto supports = [&capabilities](const wgpu::PresentMode candidate) {
     for (size_t i = 0; i < capabilities.presentModeCount; ++i) {
@@ -1176,10 +1219,10 @@ bool initialize(AuroraBackend auroraBackend, bool allowCpu) {
   Log.info("Using surface format {}, present mode {}", magic_enum::enum_name(surfaceFormat),
            magic_enum::enum_name(presentMode));
   const auto size = window::get_window_size();
-  const auto alphaMode =
-      android_transparent_surface() ? wgpu::CompositeAlphaMode::Premultiplied
-                                    : wgpu::CompositeAlphaMode::Auto;
-  Log.info("Using surface alpha mode {}", magic_enum::enum_name(alphaMode));
+  const bool transparentRequested = android_transparent_surface();
+  const auto alphaMode = select_surface_alpha_mode(g_surfaceCapabilities, transparentRequested);
+  Log.info("Using surface alpha mode {} (transparent requested: {})",
+           magic_enum::enum_name(alphaMode), transparentRequested);
   g_graphicsConfig = GraphicsConfig{
       .surfaceConfiguration =
           wgpu::SurfaceConfiguration{
