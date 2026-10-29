@@ -376,7 +376,10 @@ static void check_hud_camera_scale(void)
     pc_desktop_stage_ready();
 
     hud.projection_type = PROJ_ORTHO;
-    hud.projection_param.ortho = (typeof(hud.projection_param.ortho)){24,-24,-32,32};
+    hud.projection_param.ortho.top = 24;
+    hud.projection_param.ortho.bottom = -24;
+    hud.projection_param.ortho.left = -32;
+    hud.projection_param.ortho.right = 32;
     CHECK(pc_desktop_apply_hud_camera(&hud));
     near_value(hud.projection_param.ortho.top, 48.0f);
     near_value(hud.projection_param.ortho.bottom, -48.0f);
