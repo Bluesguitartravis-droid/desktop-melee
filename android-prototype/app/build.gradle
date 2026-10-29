@@ -7,8 +7,15 @@ android {
         applicationId 'com.desktopmelee.android'
         minSdk 29
         targetSdk 35
-        versionCode 1
-        versionName '0.0.1-overlay-prototype'
+        versionCode 2
+        versionName '0.0.2-native-bridge'
+    }
+    ndkVersion '27.2.12479018'
+    externalNativeBuild {
+        cmake { path file('src/main/cpp/CMakeLists.txt'); version '3.22.1' }
+    }
+    defaultConfig {
+        externalNativeBuild { cmake { cppFlags '-std=c++20' } }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
