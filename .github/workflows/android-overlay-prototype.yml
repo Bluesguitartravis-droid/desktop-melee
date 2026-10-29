@@ -1,0 +1,100 @@
+name: Android overlay prototype APK
+on:
+  push:
+    branches: [android-overlay-prototype]
+    paths: ['android-prototype/**', '.github/workflows/android-overlay-prototype.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: android-overlay-prototype-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  android-debug:
+    if: github.repository == 'Bluesguitartravis-droid/desktop-melee' && github.ref == 'refs/heads/android-overlay-prototype'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test controller state
+        run: |
+          mkdir -p "$RUNNER_TEMP/controller-tests"
+          javac -d "$RUNNER_TEMP/controller-tests" android-prototype/app/src/main/java/com/desktopmelee/android/InputState.java android-prototype/tests/InputStateTest.java
+          java -cp "$RUNNER_TEMP/controller-tests" InputStateTest
+      - name: Build APK and run Android lint
+        working-directory: android-prototype
+        run: gradle --no-daemon --stacktrace :app:assembleDebug :app:lintDebug
+      - name: Verify and package test build
+        env:
+          BUILD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir deliver
+          cp android-prototype/app/build/outputs/apk/debug/app-debug.apk deliver/Desktop-Melee-Android-Overlay-Test-0.0.1.apk
+          SDK_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+          "$SDK_TOOLS/apksigner" verify --verbose --print-certs deliver/*.apk > deliver/APK-VERIFICATION.txt
+          "$SDK_TOOLS/aapt" dump badging deliver/*.apk >> deliver/APK-VERIFICATION.txt
+          "$SDK_TOOLS/aapt" dump permissions deliver/*.apk >> deliver/APK-VERIFICATION.txt
+          grep -F "package: name='com.desktopmelee.android'" deliver/APK-VERIFICATION.txt
+          grep -F "sdkVersion:'29'" deliver/APK-VERIFICATION.txt
+          grep -F "targetSdkVersion:'35'" deliver/APK-VERIFICATION.txt
+          if grep -E 'uses-permission:.*(INTERNET|READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|QUERY_ALL_PACKAGES)' deliver/APK-VERIFICATION.txt; then
+            echo 'Unexpected permission in prototype'; exit 1
+          fi
+          git archive --format=zip --output=deliver/Desktop-Melee-Android-Overlay-Test-Source.zip HEAD android-prototype .github/workflows/android-overlay-prototype.yml
+          cp android-prototype/README.md deliver/ANDROID-TEST-README.md
+          printf 'Source commit: %s\nNo on-device test performed by this build.\n' "$BUILD_SHA" >> deliver/APK-VERIFICATION.txt
+          cd deliver
+          sha256sum *.apk *.zip APK-VERIFICATION.txt ANDROID-TEST-README.md > SHA256SUMS
+      - name: Upload build reports
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: Android-lint-reports
+          path: android-prototype/app/build/reports/
+          if-no-files-found: ignore
+      - name: Upload APK and source
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: Android-overlay-test
+          path: deliver/
+          if-no-files-found: error
+  publish:
+    needs: android-debug
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      BUILD_SHA: ${{ github.sha }}
+      BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/download-artifact@v4.3.0
+        with:
+          name: Android-overlay-test
+          path: deliver
+      - name: Publish a separate Android prerelease
+        run: |
+          set -euo pipefail
+          cd deliver
+          sha256sum --check SHA256SUMS
+          TAG="android-overlay-v0.0.1-build.${BUILD_NUMBER}"
+          printf '# Android overlay/input test 0.0.1\n\nDownload **Desktop-Melee-Android-Overlay-Test-0.0.1.apk** and install directly on Android, not inside DroidDeck.\n\n**NOT playable Melee.** Two colored placeholders test home-screen transparency and controller focus. Watch mode attempts touch passthrough. Play mode intentionally captures input; left stick/D-pad moves, A jumps, X flashes. Back/B or WATCH releases focus, and STOP/notification ends the overlay.\n\nRequires Android 10+ and explicit overlay and notification permissions. No disc, root, accessibility service, network or storage permission. Debug-signed disposable test build; future debug builds may require uninstall/reinstall. No built-in updater.\n\nCompilation, input-state checks, Android lint and APK signature verification passed. Odin hardware testing remains outstanding. Windows and Linux releases are unchanged.\n\nExact source commit: `%s`. Source and SHA-256 hashes are included.\n' "$BUILD_SHA" > RELEASE-NOTES.md
+          if gh release view "$TAG" >/dev/null 2>&1; then echo 'Release already exists; refusing overwrite'; exit 1; fi
+          gh release create "$TAG" --draft --prerelease --latest=false --target "$BUILD_SHA" --title "Android overlay/input test 0.0.1 (build ${BUILD_NUMBER})" --notes-file RELEASE-NOTES.md
+          gh release upload "$TAG" Desktop-Melee-Android-Overlay-Test-0.0.1.apk Desktop-Melee-Android-Overlay-Test-Source.zip APK-VERIFICATION.txt ANDROID-TEST-README.md SHA256SUMS
+          gh release edit "$TAG" --draft=false --prerelease --latest=false
