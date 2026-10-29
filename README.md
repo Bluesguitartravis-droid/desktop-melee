@@ -5,7 +5,7 @@ is the main stage and open window tops become moving platforms. The desktop
 stays clickable underneath the fighters. The Windows build also offers
 experimental wallpaper terrain.
 
-**Windows x64: 0.1.8 · Linux x86_64: 0.1.7 Linux preview 1.**
+**Windows x64: 0.1.9 · Linux x86_64: 0.1.7 Linux preview 1.**
 
 ## Download and play on Windows
 
@@ -13,20 +13,21 @@ experimental wallpaper terrain.
 
 [All releases and checksums](https://github.com/Bluesguitartravis-droid/desktop-melee/releases)
 · [Full setup, controls and troubleshooting](docs/DESKTOP_MELEE.md)
-· [Four fighters and monitor selection](docs/DESKTOP_WINDOWS_018.md)
+· [All-monitor span mode](docs/DESKTOP_WINDOWS_019.md)
 
 1. Download and run **Desktop-Melee-Setup-x64.exe**.
 2. Open **Desktop Melee** from its shortcut.
 3. Select your own local **Melee USA 1.02** disc image.
-4. Choose a **Display** and **2, 3 or 4 fighters**.
+4. Choose one **Display** or enable **Span match across all monitors**, then choose **2, 3 or 4 fighters**.
 5. Choose **Watch CPUs**, **Player 1 vs. CPUs**, **Local players**, or a custom mix.
 6. Start a desktop match. Use a controller while other apps remain clickable.
 
 Each fighter has a character, costume, and CPU/controller-port selection.
 Human fighters need different controller ports. Matches are free-for-all;
-team battles are not added in this release. The selected display supplies the
-arena, floor, window platforms and wallpaper. No change to Windows' primary
-display setting is required. Stop the match before changing display selection.
+team battles are not added in this release. Single-display mode keeps wallpaper
+terrain. All-monitor mode spans the Windows virtual desktop and keeps window
+platforms across the span; wallpaper terrain is disabled there for now. Stop
+the match before changing display selection or span mode.
 
 The single installer includes the engine, DLLs and resources and installs them
 together for your Windows account. No administrator access is required. An
@@ -35,9 +36,10 @@ its **DesktopMelee.exe**. The source ZIP is for developers. **No disc image or
 extracted game assets are supplied.** Your disc remains on your own computer
 and is not uploaded.
 
-Use a visible, fixed bottom taskbar for the first run. A screen without a usable
-bottom taskbar gets a floor near the bottom. Only one arena display is supported
-at a time; spanning monitors and separate simultaneous matches are not included.
+Use a visible, fixed bottom taskbar for the first run. A single screen without
+a usable bottom taskbar gets a floor near the bottom. In all-monitor mode the
+arena uses one common floor visible on every connected monitor; monitor layouts
+with no shared horizontal band are rejected rather than starting a broken span.
 This package targets 64-bit Windows 10 (1903 or newer) and Windows 11 on Intel/AMD
 PCs. Live multi-monitor and controller behavior still need testing on Windows.
 
@@ -102,12 +104,12 @@ The check sends no game image, wallpaper, window contents, saves or logs.
   work better than busy photographs. Covered terrain is hidden by app windows.
 - **Native match behavior:** CPU opponents, stocks, rematches, character and
   costume choices, controller ports and UCF settings. Windows supports 2-4
-  fighters and selecting the arena display.
+  fighters, selecting one arena display, or spanning all connected monitors.
 
 Wallpaper recognition is a bounded heuristic. It does not create solid walls,
 ceilings or hazards, and it cannot guarantee every ledge is reachable. The
 0.1.6 changes for continuous hill contours and native floor collision before
-bottom knockout checks remain included in 0.1.8. Multi-monitor wallpaper
+bottom knockout checks remain included in 0.1.9. Multi-monitor wallpaper
 Tile/Span placement remains unsupported.
 
 ## Controls
