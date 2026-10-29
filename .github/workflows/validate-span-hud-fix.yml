@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4.2.2
         with:
-          ref: 5091d5e9d840c909dd734738f8059225daa790aa
+          ref: a7af7a6d6ca63ee6919e8e4cc4743fbfc52393d3
           fetch-depth: 0
       - name: Install build tools
         run: |
