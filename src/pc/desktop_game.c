@@ -902,6 +902,54 @@ void pc_desktop_hud_position(int slot, int count, float* x, float* y)
     *y = 16.5f;
 }
 
+bool pc_desktop_apply_hud_camera(HSD_CObj* camera)
+{
+    float scale;
+    if (!pc_desktop_collision_fixed() || camera == NULL ||
+        geometry.width == 0 || geometry.height == 0) {
+        return false;
+    }
+    scale = fminf(1.0f, fminf(1920.0f / (float) geometry.width,
+                              1080.0f / (float) geometry.height));
+    if (!(scale > 0.0f) || scale >= 0.999f) {
+        return true;
+    }
+    switch (HSD_CObjGetProjectionType(camera)) {
+    case PROJ_ORTHO: {
+        float top, bottom, left, right;
+        float cx, cy, hx, hy;
+        HSD_CObjGetOrtho(camera, &top, &bottom, &left, &right);
+        cx = 0.5f * (left + right);
+        cy = 0.5f * (top + bottom);
+        hx = 0.5f * (right - left) / scale;
+        hy = 0.5f * (top - bottom) / scale;
+        HSD_CObjSetOrtho(camera, cy + hy, cy - hy, cx - hx, cx + hx);
+        return true;
+    }
+    case PROJ_FRUSTUM: {
+        float top = camera->projection_param.frustum.top;
+        float bottom = camera->projection_param.frustum.bottom;
+        float left = camera->projection_param.frustum.left;
+        float right = camera->projection_param.frustum.right;
+        float cx = 0.5f * (left + right);
+        float cy = 0.5f * (top + bottom);
+        float hx = 0.5f * (right - left) / scale;
+        float hy = 0.5f * (top - bottom) / scale;
+        HSD_CObjSetFrustum(camera, cy + hy, cy - hy, cx - hx, cx + hx);
+        return true;
+    }
+    case PROJ_PERSPECTIVE: {
+        const float radians = camera->projection_param.perspective.fov *
+                              (3.14159265358979323846f / 180.0f);
+        const float widened = 2.0f * atanf(tanf(0.5f * radians) / scale);
+        HSD_CObjSetFov(camera, widened * (180.0f / 3.14159265358979323846f));
+        return true;
+    }
+    default:
+        return false;
+    }
+}
+
 void pc_desktop_match_loaded(void)
 {
     if (pc_desktop_collision_fixed()) {
