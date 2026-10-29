@@ -268,6 +268,36 @@ void pc_android_set_launcher_active(bool active) {
     env->DeleteLocalRef(activity);
 }
 
+
+bool pc_android_get_desktop_geometry(AuroraDesktopGeometry* out) {
+    if (out == nullptr) return false;
+    JNIEnv* env = (JNIEnv*)SDL_GetAndroidJNIEnv();
+    if (env == nullptr || env->PushLocalFrame(8) != JNI_OK) return false;
+    bool ok = false;
+    jobject activity = (jobject)SDL_GetAndroidActivity();
+    jclass cls = activity != nullptr ? env->GetObjectClass(activity) : nullptr;
+    jmethodID method = cls != nullptr ? env->GetMethodID(cls, "getDesktopArenaGeometry", "()[I") : nullptr;
+    if (method != nullptr) {
+        jintArray arr = (jintArray)env->CallObjectMethod(activity, method);
+        if (!threw(env, "getDesktopArenaGeometry") && arr != nullptr && env->GetArrayLength(arr) == 8) {
+            jint v[8];
+            env->GetIntArrayRegion(arr, 0, 8, v);
+            *out = AuroraDesktopGeometry{
+                v[0], v[1], (uint32_t)v[2], (uint32_t)v[3],
+                v[4], v[5], v[6], v[7]
+            };
+            ok = out->width > 0 && out->height > 0 &&
+                 out->platform_left >= 0 &&
+                 out->platform_right > out->platform_left &&
+                 (uint32_t)out->platform_right <= out->width &&
+                 out->platform_top > 0 &&
+                 (uint32_t)out->platform_top < out->height;
+        }
+    }
+    env->PopLocalFrame(nullptr);
+    return ok;
+}
+
 void pc_android_export_logs(void) {
     JNIEnv* env = (JNIEnv*)SDL_GetAndroidJNIEnv();
     if (env == nullptr || env->PushLocalFrame(8) != JNI_OK)
@@ -309,6 +339,7 @@ const char* pc_android_device_name(void) {
 bool pc_android_set_fullscreen(bool) {
     return false;
 }
+bool pc_android_get_desktop_geometry(AuroraDesktopGeometry*) { return false; }
 void pc_android_export_logs(void) {}
 void pc_android_multicast_lock_acquire(void) {}
 void pc_android_multicast_lock_release(void) {}
