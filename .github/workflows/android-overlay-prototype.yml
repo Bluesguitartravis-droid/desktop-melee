@@ -10,73 +10,105 @@ concurrency:
   group: android-overlay-prototype-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  android-debug:
+  android-build:
     if: github.repository == 'Bluesguitartravis-droid/desktop-melee' && github.ref == 'refs/heads/android-overlay-prototype'
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
-      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
         with:
           packages: 'platform-tools'
           accept-android-sdk-licenses: false
           log-accepted-android-sdk-licenses: false
       - name: Install Android SDK
         run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018' 'cmake;3.22.1'
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
         with:
           gradle-version: '8.9'
+      - name: Prepare stable prototype signing key
+        run: |
+          set -euo pipefail
+          mkdir -p signing
+          if gh release download android-prototype-signing-v1 --repo "$GITHUB_REPOSITORY" --pattern prototype-signing.pk8 --pattern prototype-signing.x509.pem --dir signing >/dev/null 2>&1; then
+            echo "Reusing published prototype signing key."
+          else
+            echo "Creating first stable prototype signing key."
+            openssl req -x509 -newkey rsa:2048 -nodes \
+              -keyout signing/prototype-signing.pem \
+              -out signing/prototype-signing.x509.pem \
+              -days 36500 -sha256 \
+              -subj '/CN=Desktop Melee Android Prototype/O=Desktop Melee/C=US'
+            openssl pkcs8 -topk8 -inform PEM -outform DER -nocrypt \
+              -in signing/prototype-signing.pem \
+              -out signing/prototype-signing.pk8
+            rm signing/prototype-signing.pem
+          fi
+          openssl x509 -in signing/prototype-signing.x509.pem -noout -subject -dates
       - name: Test controller state
         run: |
           mkdir -p "$RUNNER_TEMP/controller-tests"
           javac -d "$RUNNER_TEMP/controller-tests" android-prototype/app/src/main/java/com/desktopmelee/android/InputState.java android-prototype/tests/InputStateTest.java
           java -cp "$RUNNER_TEMP/controller-tests" InputStateTest
-      - name: Build APK and run Android lint
+      - name: Build unsigned release APK and lint
         working-directory: android-prototype
-        run: gradle --no-daemon --stacktrace :app:assembleDebug :app:lintDebug
-      - name: Verify and package test build
+        run: gradle --no-daemon --stacktrace :app:assembleRelease :app:lintRelease
+      - name: Sign, verify and package stable-update APK
         env:
           BUILD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          mkdir deliver
-          cp android-prototype/app/build/outputs/apk/debug/app-debug.apk deliver/Desktop-Melee-Android-Prototype-0.0.2.apk
+          mkdir -p deliver/internal-signing
           SDK_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
-          "$SDK_TOOLS/apksigner" verify --verbose --print-certs deliver/*.apk > deliver/APK-VERIFICATION.txt
-          "$SDK_TOOLS/aapt" dump badging deliver/*.apk >> deliver/APK-VERIFICATION.txt
-          "$SDK_TOOLS/aapt" dump permissions deliver/*.apk >> deliver/APK-VERIFICATION.txt
+          "$SDK_TOOLS/apksigner" sign \
+            --key signing/prototype-signing.pk8 \
+            --cert signing/prototype-signing.x509.pem \
+            --out deliver/Desktop-Melee-Android-Prototype-0.0.3.apk \
+            android-prototype/app/build/outputs/apk/release/app-release-unsigned.apk
+          "$SDK_TOOLS/apksigner" verify --verbose --print-certs deliver/Desktop-Melee-Android-Prototype-0.0.3.apk > deliver/APK-VERIFICATION.txt
+          "$SDK_TOOLS/aapt" dump badging deliver/Desktop-Melee-Android-Prototype-0.0.3.apk >> deliver/APK-VERIFICATION.txt
+          "$SDK_TOOLS/aapt" dump permissions deliver/Desktop-Melee-Android-Prototype-0.0.3.apk >> deliver/APK-VERIFICATION.txt
           grep -F "package: name='com.desktopmelee.android'" deliver/APK-VERIFICATION.txt
+          grep -F "versionCode='3'" deliver/APK-VERIFICATION.txt
           grep -F "sdkVersion:'29'" deliver/APK-VERIFICATION.txt
           grep -F "targetSdkVersion:'35'" deliver/APK-VERIFICATION.txt
           if grep -E 'uses-permission:.*(INTERNET|READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|QUERY_ALL_PACKAGES)' deliver/APK-VERIFICATION.txt; then
             echo 'Unexpected permission in prototype'; exit 1
           fi
-          git archive --format=zip --output=deliver/Desktop-Melee-Android-Prototype-Source-0.0.2.zip HEAD android-prototype .github/workflows/android-overlay-prototype.yml
+          CERT_SHA="$(openssl x509 -in signing/prototype-signing.x509.pem -outform DER | sha256sum | awk '{print $1}')"
+          APK_CERT_SHA="$(grep -i 'Signer #1 certificate SHA-256 digest:' deliver/APK-VERIFICATION.txt | awk '{print $NF}' | tr -d ':' | tr 'A-F' 'a-f')"
+          test "$CERT_SHA" = "$APK_CERT_SHA"
+          printf '%s\n' "$CERT_SHA" > deliver/SIGNING-CERT-SHA256.txt
+          cp signing/prototype-signing.pk8 deliver/internal-signing/
+          cp signing/prototype-signing.x509.pem deliver/internal-signing/
+          git archive --format=zip --output=deliver/Desktop-Melee-Android-Prototype-Source-0.0.3.zip HEAD android-prototype .github/workflows/android-overlay-prototype.yml
           cp android-prototype/README.md deliver/ANDROID-TEST-README.md
-          printf 'Source commit: %s\nNo on-device test performed by this build.\n' "$BUILD_SHA" >> deliver/APK-VERIFICATION.txt
+          printf 'Source commit: %s\nStable prototype signing baseline begins at version 0.0.3.\n' "$BUILD_SHA" >> deliver/APK-VERIFICATION.txt
           cd deliver
-          sha256sum *.apk *.zip APK-VERIFICATION.txt ANDROID-TEST-README.md > SHA256SUMS
+          sha256sum Desktop-Melee-Android-Prototype-0.0.3.apk Desktop-Melee-Android-Prototype-Source-0.0.3.zip APK-VERIFICATION.txt ANDROID-TEST-README.md SIGNING-CERT-SHA256.txt > SHA256SUMS
       - name: Upload build reports
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: Android-lint-reports
           path: android-prototype/app/build/reports/
           if-no-files-found: ignore
-      - name: Upload APK and source
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - name: Upload APK, signing bootstrap and source
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: Android-overlay-test
+          name: Android-stable-update-test
           path: deliver/
           if-no-files-found: error
   publish:
-    needs: android-debug
+    needs: android-build
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -89,16 +121,17 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4.3.0
         with:
-          name: Android-overlay-test
+          name: Android-stable-update-test
           path: deliver
-      - name: Publish a separate Android prerelease
+      - name: Publish stable signing baseline and Android prerelease
         run: |
           set -euo pipefail
           cd deliver
           sha256sum --check SHA256SUMS
-          TAG="android-prototype-v0.0.2-build.${BUILD_NUMBER}"
-          printf '# Android prototype 0.0.2\n\nDownload **Desktop-Melee-Android-Prototype-0.0.2.apk** and install directly on Android, not inside DroidDeck.\n\n**NOT playable Melee.** Four placeholder fighters test home-screen transparency, four-slot layout and controller focus. The APK also loads a native C++ bridge as the foundation for the future engine port. Watch mode attempts touch passthrough. Play mode intentionally captures input; left stick/D-pad moves, A jumps, X flashes. Back/B or WATCH releases focus, and STOP/notification ends the overlay.\n\nRequires Android 10+ and explicit overlay and notification permissions. No disc, root, accessibility service, network or storage permission. Debug-signed disposable test build; future debug builds may require uninstall/reinstall. No built-in updater.\n\nCompilation, input-state checks, Android lint and APK signature verification passed. Odin hardware testing remains outstanding. Windows and Linux releases are unchanged.\n\nExact source commit: `%s`. Source and SHA-256 hashes are included.\n' "$BUILD_SHA" > RELEASE-NOTES.md
-          if gh release view "$TAG" >/dev/null 2>&1; then echo 'Release already exists; refusing overwrite'; exit 1; fi
-          gh release create "$TAG" --draft --prerelease --latest=false --target "$BUILD_SHA" --title "Android prototype 0.0.2 (build ${BUILD_NUMBER})" --notes-file RELEASE-NOTES.md
-          gh release upload "$TAG" Desktop-Melee-Android-Prototype-0.0.2.apk Desktop-Melee-Android-Prototype-Source-0.0.2.zip APK-VERIFICATION.txt ANDROID-TEST-README.md SHA256SUMS
-          gh release edit "$TAG" --draft=false --prerelease --latest=false
+          if ! gh release view android-prototype-signing-v1 >/dev/null 2>&1; then
+            printf '# Desktop Melee Android prototype signing key v1\n\nThis is an intentionally public test-only signing key used so prototype APKs can update in place. It must never be used for a production/store package.\n' > SIGNING-NOTES.md
+            gh release create android-prototype-signing-v1 --prerelease --latest=false --target "$BUILD_SHA" --title "Android prototype signing key v1" --notes-file SIGNING-NOTES.md internal-signing/prototype-signing.pk8 internal-signing/prototype-signing.x509.pem SIGNING-CERT-SHA256.txt
+          fi
+          TAG="android-prototype-v0.0.3-build.${BUILD_NUMBER}"
+          printf '# Android prototype 0.0.3\n\nOne-time migration: uninstall 0.0.1/0.0.2 before installing 0.0.3 because the earlier GitHub debug builds used different ephemeral signing keys. Starting with 0.0.3, prototype builds use one stable test signing certificate so later APKs can install over the previous version.\n\nFour placeholder fighters and the native C++ bridge remain included. This is not playable Melee yet.\n\nExact source commit: %s.\n' "$BUILD_SHA" > RELEASE-NOTES.md
+          gh release create "$TAG" --prerelease --latest=false --target "$BUILD_SHA" --title "Android prototype 0.0.3 - stable updates (build ${BUILD_NUMBER})" --notes-file RELEASE-NOTES.md Desktop-Melee-Android-Prototype-0.0.3.apk Desktop-Melee-Android-Prototype-Source-0.0.3.zip APK-VERIFICATION.txt ANDROID-TEST-README.md SIGNING-CERT-SHA256.txt SHA256SUMS
