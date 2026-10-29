@@ -44,6 +44,7 @@
             android:configChanges="layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
             android:exported="true"
             android:label="@string/app_name"
+            android:theme="@style/Theme.DesktopMeleeOverlay"
             android:preferMinimalPostProcessing="true"
             android:screenOrientation="fullSensor">
             <intent-filter>
