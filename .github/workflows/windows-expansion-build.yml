@@ -1,0 +1,109 @@
+name: Windows four-fighter and monitor build
+on:
+  push:
+    branches: [windows-four-fighters-monitors]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: windows-four-fighters-monitors
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.repository == 'Bluesguitartravis-droid/desktop-melee' && github.ref == 'refs/heads/windows-four-fighters-monitors'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    outputs:
+      commit: ${{ steps.source.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Apply validated source transformations
+        run: |
+          if test -f tools/apply_windows_expansion.py; then python3 tools/apply_windows_expansion.py; fi
+          git diff --check
+          test "$(tr -d '\r\n' < DESKTOP_VERSION)" = 0.1.8
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config python3 git zip cabextract curl bzip2 xz-utils mingw-w64 nsis
+          sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+          sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+      - name: Native roster, geometry, collision, fighter and updater regressions
+        run: |
+          bash tools/test_desktop_game.sh
+          bash tools/test_desktop_monitor.sh
+          bash tools/test_desktop_collision.sh
+          bash tools/test_desktop_fighter.sh
+          bash tools/test_desktop_update.sh
+          python3 tools/test_desktop_release.py
+          out="$(mktemp -d)"
+          trap 'rm -rf "$out"' EXIT
+          for name in desktop_pixels desktop_window_geometry desktop_wallpaper_geometry desktop_wallpaper_mapping; do
+            g++ -std=c++20 -O2 -Wall -Wextra -Werror -Iextern/aurora/include "extern/aurora/tests/${name}_test.cpp" -o "$out/$name"
+            "$out/$name"
+          done
+      - name: Commit tested ordinary source before compiling
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m 'Implement four-fighter Windows matches and selectable monitor arenas'
+            git -c credential.helper='!gh auth git-credential' push origin HEAD:refs/heads/windows-four-fighters-monitors
+          fi
+          test -z "$(git status --porcelain)"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Build Windows installer and portable package
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: '4'
+        run: bash tools/build_desktop_windows.sh
+      - name: Package exact source and checksums
+        run: |
+          python3 tools/package_desktop_source.py --tag desktop-v0.1.8 --binary-archive dist/Desktop-Melee-Windows-x64.zip --installer dist/Desktop-Melee-Setup-x64.exe --output-dir dist
+          cp docs/DESKTOP_WINDOWS_018.md dist/RELEASE-NOTES.md
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: Windows-0.1.8-validated
+          compression-level: 0
+          if-no-files-found: error
+          path: |
+            dist/Desktop-Melee-Setup-x64.exe
+            dist/Desktop-Melee-Windows-x64.zip
+            dist/Desktop-Melee-Source-0.1.8.zip
+            dist/SHA256SUMS
+            dist/RELEASE-NOTES.md
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      SOURCE_COMMIT: ${{ needs.build.outputs.commit }}
+    steps:
+      - uses: actions/download-artifact@v4.3.0
+        with:
+          name: Windows-0.1.8-validated
+          path: deliver
+      - name: Verify and publish complete Windows release
+        run: |
+          set -euo pipefail
+          cd deliver
+          sha256sum --check SHA256SUMS
+          if gh release view desktop-v0.1.8 >/dev/null 2>&1; then echo 'Release exists; refusing overwrite'; exit 1; fi
+          printf '\nSource commit: `%s`. Cross-compiled and regression-tested; live Windows gameplay has not been verified by CI.\n' "$SOURCE_COMMIT" >> RELEASE-NOTES.md
+          gh release create desktop-v0.1.8 --target "$SOURCE_COMMIT" --draft --title 'Desktop Melee 0.1.8 - Four fighters and monitor selection' --notes-file RELEASE-NOTES.md
+          gh release upload desktop-v0.1.8 Desktop-Melee-Setup-x64.exe Desktop-Melee-Windows-x64.zip Desktop-Melee-Source-0.1.8.zip SHA256SUMS
+          gh release view desktop-v0.1.8 --json assets > assets.json
+          python3 -c 'import json; assert {a["name"] for a in json.load(open("assets.json"))["assets"]} == {"Desktop-Melee-Setup-x64.exe","Desktop-Melee-Windows-x64.zip","Desktop-Melee-Source-0.1.8.zip","SHA256SUMS"}'
+          gh release edit desktop-v0.1.8 --draft=false --latest
