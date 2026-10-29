@@ -6,6 +6,7 @@ import android.net.Uri;
 import android.os.*;
 import android.provider.Settings;
 import android.widget.TextView;
+import android.widget.Toast;
 import org.json.*;
 import java.io.*;
 import java.net.*;
