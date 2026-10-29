@@ -35,7 +35,7 @@ int main() {
         std::array<int32_t,2> floors{{1040,1040}};
         assert(make_span(screens,floors,g));
         assert(g.screen_x==0 && g.screen_y==0 && g.width==3840 && g.height==1080);
-        assert(g.platform_left==0 && g.platform_right==3840 && g.platform_top==1040);
+        assert(g.platform_left==0 && g.platform_right==1920 && g.platform_top==1040);
     }
     {
         std::array<Rect,2> screens{{{-2560,-200,0,1240},{0,0,1920,1080}}};
@@ -49,7 +49,7 @@ int main() {
         std::array<int32_t,2> floors{{852,2032}};
         assert(make_span(disconnected,floors,g));
         assert(g.screen_x==0 && g.screen_y==0 && g.width==3840 && g.height==2080);
-        assert(g.platform_top==2032);
+        assert(g.platform_left==1920 && g.platform_right==3840 && g.platform_top==2032);
     }
     {
         std::array<Rect,5> staggered{{{-1920,-1080,-960,0},{-960,-1080,0,0},
@@ -57,7 +57,7 @@ int main() {
         std::array<int32_t,5> floors{{-48,-48,-48,-308,1040}};
         assert(make_span(staggered,floors,g));
         assert(g.screen_x==-1920 && g.screen_y==-1080);
-        assert(g.width==5120 && g.height==2160 && g.platform_top==2120);
+        assert(g.width==5120 && g.height==2160 && g.platform_top==2120);\n        assert(g.platform_left==2560 && g.platform_right==3840);
     }
     puts("monitor geometry: single, side-by-side and staggered all-monitor spans passed");
 }
