@@ -9,8 +9,9 @@
 extern "C" {
 #endif
 
-/* Physical pixels. The platform rectangle is relative to the primary
- * monitor; screen_x/screen_y are its origin in the virtual desktop. */
+/* Physical pixels. The platform rectangle is relative to the selected arena
+ * rectangle, which may be one monitor or the all-monitor virtual-desktop span.
+ * screen_x/screen_y are that rectangle's origin in the virtual desktop. */
 typedef struct AuroraDesktopGeometry {
   int32_t screen_x, screen_y;
   uint32_t width, height;
@@ -35,7 +36,7 @@ const char* aurora_desktop_unavailable_reason(void);
 #define AURORA_DESKTOP_MAX_WINDOW_EDGES 32
 
 /* A visible horizontal portion of an application's top edge. All coordinates
- * are physical pixels relative to the primary monitor. The full window
+ * are physical pixels relative to the selected arena rectangle. The full window
  * rectangle is not clipped, so movement can be distinguished from resizing
  * or occlusion. window_id is opaque and stable during the window's lifetime;
  * span_index is its current left-to-right fragment index, not a stable ID. */
@@ -58,8 +59,9 @@ uint32_t aurora_desktop_get_window_edges(AuroraDesktopWindowEdge* edges, uint32_
 
 #define AURORA_DESKTOP_MAX_WALLPAPER_EDGES 32
 
-/* Experimental floor segments inferred from the selected wallpaper image. Physical
- * primary-monitor pixels. A nonzero generation identifies one image/layout;
+/* Experimental floor segments inferred from the selected wallpaper image.
+ * Physical pixels relative to one selected monitor. Wallpaper terrain is
+ * disabled when the arena spans all monitors. A nonzero generation identifies one image/layout;
  * edge_id is stable only within that generation. Occlusion by app windows
  * can produce multiple fragments sharing generation/edge_id; match them by
  * horizontal overlap, never fragment ordinal. A new generation must be
