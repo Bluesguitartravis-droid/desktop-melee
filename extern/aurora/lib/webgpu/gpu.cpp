@@ -268,6 +268,15 @@ uint32_t viewport_extent(float value) noexcept {
 
 bool vsync_enabled() noexcept { return g_vsyncEnabled.load(std::memory_order_acquire); }
 
+bool android_transparent_surface() noexcept {
+#if defined(__ANDROID__)
+  const char* value = std::getenv("MELEE_ANDROID_TRANSPARENT");
+  return value != nullptr && value[0] == '1';
+#else
+  return false;
+#endif
+}
+
 wgpu::PresentMode select_present_mode(const wgpu::SurfaceCapabilities& capabilities) noexcept {
   const auto supports = [&capabilities](const wgpu::PresentMode candidate) {
     for (size_t i = 0; i < capabilities.presentModeCount; ++i) {
@@ -1167,6 +1176,10 @@ bool initialize(AuroraBackend auroraBackend, bool allowCpu) {
   Log.info("Using surface format {}, present mode {}", magic_enum::enum_name(surfaceFormat),
            magic_enum::enum_name(presentMode));
   const auto size = window::get_window_size();
+  const auto alphaMode =
+      android_transparent_surface() ? wgpu::CompositeAlphaMode::Premultiplied
+                                    : wgpu::CompositeAlphaMode::Auto;
+  Log.info("Using surface alpha mode {}", magic_enum::enum_name(alphaMode));
   g_graphicsConfig = GraphicsConfig{
       .surfaceConfiguration =
           wgpu::SurfaceConfiguration{
@@ -1175,6 +1188,7 @@ bool initialize(AuroraBackend auroraBackend, bool allowCpu) {
               .width = size.native_fb_width,
               .height = size.native_fb_height,
               .presentMode = presentMode,
+              .alphaMode = alphaMode,
           },
       .depthFormat = wgpu::TextureFormat::Depth32Float,
       .msaaSamples = g_config.msaa,
