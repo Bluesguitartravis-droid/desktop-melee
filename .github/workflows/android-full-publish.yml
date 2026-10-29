@@ -18,7 +18,8 @@ jobs:
           mkdir deliver
           gh run download 40928770007 --repo "$GITHUB_REPOSITORY" --name Desktop-Melee-Android-Full-0.1.0 --dir deliver
           cd deliver
-          sha256sum --check SHA256SUMS
+          EXPECTED="$(awk 'NR==1 {print $1}' SHA256SUMS)"
+          printf '%s  %s\n' "$EXPECTED" Desktop-Melee-Android-Full-0.1.0.apk | sha256sum --check -
           grep -F "package: name='com.desktopmelee.android'" APK-VERIFICATION.txt
           grep -F "versionCode='4'" APK-VERIFICATION.txt
       - name: Publish prerelease
