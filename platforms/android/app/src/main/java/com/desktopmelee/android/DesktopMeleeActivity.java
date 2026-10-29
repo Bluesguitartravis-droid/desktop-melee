@@ -135,6 +135,17 @@ public final class DesktopMeleeActivity extends Activity {
         return s;
     }
     private void launch() {
+        if (homeOverlay.isChecked() && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M &&
+                !android.provider.Settings.canDrawOverlays(this)) {
+            android.content.Intent permission = new android.content.Intent(
+                android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                android.net.Uri.parse("package:" + getPackageName()));
+            startActivity(permission);
+            Toast.makeText(this,
+                "Allow Display over other apps for Desktop Melee, then press Start again.",
+                Toast.LENGTH_LONG).show();
+            return;
+        }
         int orientationMode = Math.max(0, orientation.getCheckedRadioButtonId()-100);
         int fighterCount = players.getSelectedItemPosition()+2;
         int watch = mode.getSelectedItemPosition();
