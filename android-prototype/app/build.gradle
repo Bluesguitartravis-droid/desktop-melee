@@ -3,12 +3,21 @@ android {
     namespace 'com.desktopmelee.android'
     compileSdk 35
     buildToolsVersion '35.0.0'
+    signingConfigs {
+        prototype {
+            storeFile rootProject.file('signing/desktopmelee-prototype.p12')
+            storePassword 'desktopmelee-prototype'
+            keyAlias 'desktopmelee-test'
+            keyPassword 'desktopmelee-prototype'
+            storeType 'PKCS12'
+        }
+    }
     defaultConfig {
         applicationId 'com.desktopmelee.android'
         minSdk 29
         targetSdk 35
-        versionCode 2
-        versionName '0.0.2-native-bridge'
+        versionCode 3
+        versionName '0.0.3-stable-signing'
     }
     ndkVersion '27.2.12479018'
     externalNativeBuild {
@@ -16,6 +25,9 @@ android {
     }
     defaultConfig {
         externalNativeBuild { cmake { cppFlags '-std=c++20' } }
+    }
+    buildTypes {
+        debug { signingConfig signingConfigs.prototype }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
