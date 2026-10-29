@@ -1,4 +1,4 @@
-# Desktop Melee Android: overlay/input test 0.0.2
+# Desktop Melee Android: overlay/input test 0.0.3
 
 **This is not playable Melee.** Yellow and pink circles are diagnostic placeholders. There is no Melee engine, Nintendo content or disc loading in this APK. The purpose is to test Android home-screen visibility and controller routing on Odin 3 Ultra, before attempting the native engine port.
 
@@ -34,9 +34,24 @@ A successful build is not a hardware gameplay test. No actual Melee engine integ
 - https://developer.android.com/about/versions/14/changes/fgs-types-required
 - https://developer.android.com/about/versions/15/behavior-changes-15
 
-## 0.0.2 milestone
+## 0.0.3 milestone
 
 - Four placeholder fighter slots are visible at once.
 - Watch mode animates all four without taking launcher input focus.
 - Play mode gives the Odin controller to P1 while three CPU placeholders remain active.
 - The APK loads `libdesktopmelee_native.so` and calls a JNI status function from Java. This proves the Android app can host our own native C++ code before we begin moving the actual game/render path across.
+
+
+## Stable update signing
+
+Version 0.0.3 establishes a fixed prototype signing certificate for Android updates.
+The original 0.0.1 and 0.0.2 APKs were signed by GitHub's ephemeral debug keystores,
+so Android cannot accept 0.0.3 over either of those installs. Uninstall the old
+prototype once, then install 0.0.3. Future APKs built by this workflow use the
+same package name and signing certificate and are intended to install in place.
+
+Prototype certificate SHA-256:
+`8A:10:40:F5:F8:FA:ED:5E:49:EE:F8:21:18:AB:CD:95:8F:4F:25:99:E4:27:4E:80:CF:23:7D:01:9C:A2:C8:35`
+
+This prototype signing key is intentionally public and is not suitable for a
+production or store release.
