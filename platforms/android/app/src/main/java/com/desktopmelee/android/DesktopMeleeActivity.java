@@ -19,6 +19,9 @@ public final class DesktopMeleeActivity extends Activity {
     private SeekBar landscapeMargin, landscapeFloor, portraitMargin, portraitFloor;
     private Spinner players, mode, cpu, stocks;
     private CheckBox homeOverlay;
+    private CheckBox autoUpdates;
+    private TextView updateStatus;
+    private AndroidUpdater updater;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -56,6 +59,19 @@ public final class DesktopMeleeActivity extends Activity {
         root.addView(homeOverlay);
         root.addView(text("Turn this off to use normal foreground rendering if your Android/Vulkan compositor has trouble with transparency.", 13));
 
+        root.addView(text("Updates", 18));
+        autoUpdates = new CheckBox(this);
+        autoUpdates.setText("Automatically check for Android Full updates");
+        autoUpdates.setChecked(prefs.getBoolean("autoUpdate", true));
+        autoUpdates.setOnCheckedChangeListener((button, checked) ->
+            prefs.edit().putBoolean("autoUpdate", checked).apply());
+        root.addView(autoUpdates);
+        updateStatus = text("Update channel: Android Full releases on GitHub", 13);
+        root.addView(updateStatus);
+        Button checkUpdate = new Button(this);
+        checkUpdate.setText("Check for updates now");
+        root.addView(checkUpdate);
+
         root.addView(text("Match", 18));
         players = spinner(root, "Fighters", new String[]{"2","3","4"}, prefs.getInt("players",2)-2);
         mode = spinner(root, "Mode", new String[]{"Player 1 vs CPUs","Watch CPUs"}, prefs.getInt("watch",0));
@@ -71,6 +87,19 @@ public final class DesktopMeleeActivity extends Activity {
         root.addView(note);
 
         setContentView(scroll);
+        updater = new AndroidUpdater(this, prefs, updateStatus);
+        checkUpdate.setOnClickListener(v -> updater.checkNow());
+        root.postDelayed(() -> updater.checkIfDue(), 600L);
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (updater != null) updater.onResume();
+    }
+
+    @Override protected void onDestroy() {
+        if (updater != null) updater.close();
+        super.onDestroy();
     }
 
     private int dp(int v) { return Math.round(v * getResources().getDisplayMetrics().density); }
