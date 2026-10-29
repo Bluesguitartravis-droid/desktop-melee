@@ -116,11 +116,20 @@ std::vector<geometry::Window> enumerate_windows(const AuroraDesktopGeometry& des
               query.found ? &bar : nullptr, local))
         continue;
       const int32_t floor_abs = local.screen_y + local.platform_top;
-      if (floor_abs >= main_floor_abs - 2) continue;
       const auto& r = monitor.info.rcMonitor;
+      const int32_t rel_left = r.left - desktop.screen_x;
+      const int32_t rel_right = r.right - desktop.screen_x;
+      const bool is_main = std::abs(floor_abs - main_floor_abs) <= 2 &&
+                           rel_left == desktop.platform_left &&
+                           rel_right == desktop.platform_right;
+      if (is_main) continue;
+      /* Native dynamic floors must sit above the main floor. Parallel monitors
+       * at exactly the same Y get an imperceptible one-pixel lift. */
+      const int32_t floor_rel = std::min(floor_abs - desktop.screen_y,
+                                         desktop.platform_top - 1);
+      if (floor_rel <= 0) continue;
       windows.push_back({synthetic++,
-          {r.left - desktop.screen_x, floor_abs - desktop.screen_y,
-           r.right - desktop.screen_x, r.bottom - desktop.screen_y}});
+          {rel_left, floor_rel, rel_right, r.bottom - desktop.screen_y}});
     }
   }
   /* GetWindow's order is explicit. Bound the traversal and detect repeats:
