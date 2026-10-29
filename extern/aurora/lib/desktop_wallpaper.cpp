@@ -395,7 +395,10 @@ void worker_main(Shared& shared) noexcept {
 bool opted_in() {
   const char* desktop = std::getenv("MELEE_DESKTOP");
   const char* wallpaper = std::getenv("MELEE_DESKTOP_WALLPAPER");
-  return desktop && wallpaper && std::strcmp(desktop, "1") == 0 && std::strcmp(wallpaper, "1") == 0;
+  const char* all = std::getenv("MELEE_DESKTOP_ALL_MONITORS");
+  return desktop && wallpaper && std::strcmp(desktop, "1") == 0 &&
+         std::strcmp(wallpaper, "1") == 0 &&
+         !(all && std::strcmp(all, "1") == 0);
 }
 
 void disable() {
