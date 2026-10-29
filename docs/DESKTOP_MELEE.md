@@ -1,4 +1,4 @@
-# Desktop Melee for Windows — 0.1.6 / experimental preview 6
+# Desktop Melee for Windows — 0.1.8
 
 An independent Windows implementation of the desktop-fighting idea: native
 Super Smash Bros. Melee, a transparent overlay, a stage aligned with the
@@ -17,7 +17,7 @@ This build has not been played on a Windows PC in the build environment;
 controller feel, real-match throws and live wallpaper changes still require
 testing on the user's computer with their own local disc image.
 
-## Preview 6: GitHub releases and startup update checks
+## Windows 0.1.8: four fighters and display selection\n\nUse **Fighters** to choose 2, 3 or 4 active slots. Presets provide **Player 1\nvs. CPUs**, **Watch CPUs**, **Local players**, or a **Custom player / CPU mix**.\nEach active slot selects its own character, costume and CPU/controller port.\nHuman fighters must use different controller ports. These are free-for-all stock\nmatches; team battles are not part of 0.1.8.\n\nUse **Display** to keep the arena on the primary screen automatically or select\na different connected monitor. **Refresh** rescans displays. The selected screen\nprovides the arena bounds, floor, window-platform coordinates and wallpaper\nsource. A disconnected saved display is reported instead of silently falling\nback to another screen. Displays with no usable bottom taskbar get a lower-edge\nfallback floor. Only one monitor hosts the arena at a time.\n\n## GitHub releases and startup update checks
 
 Project: <https://github.com/Bluesguitartravis-droid/desktop-melee>
 
@@ -245,7 +245,7 @@ Completed rounds start another match with the same selection.
 
 | Action | How |
 | --- | --- |
-| Play | Controller port 1 and, in two-player mode, port 2 |
+| Play | Any unique controller ports 1-4 assigned to active human fighters |
 | Keep using your desktop | Click normally; the game overlay passes mouse clicks through |
 | Pause / open settings | **Ctrl+Shift+F10**, or right-click the Desktop Melee tray icon |
 | Resume from settings | **F1**, **Ctrl+Shift+F10**, or the tray menu |
@@ -328,7 +328,7 @@ primary display, then restart. Monitor rearrangement while active requests an
 exit rather than moving collision under the fighters.
 
 **A window is not a platform:** check the launcher's window-platform checkbox,
-then use a normal, non-minimized app window on the primary display. Its top
+then use a normal, non-minimized app window on the selected display. Its top
 must be visible, below the upper screen edge and above the taskbar. Move it
 lower if the fighters cannot jump high enough. A window on another virtual
 desktop, a tool palette, a menu or a tiny exposed strip is skipped.
@@ -383,7 +383,7 @@ are declared in the repository's CMake files.
 1. Update `DESKTOP_VERSION` with the next numeric version and commit all changes.
 2. Open **Actions → Desktop Windows release → Run workflow** in this repository.
 3. Choose the intended branch and enter the matching tag, for example
-   `desktop-v0.1.7` when the version file is `0.1.7`.
+   `desktop-v0.1.9` when the version file is `0.1.9`.
 4. The workflow tests and builds Windows x64, bundles its installer, creates
    matching committed-source and SHA-256 files, uploads all assets to a draft,
    then publishes the complete
