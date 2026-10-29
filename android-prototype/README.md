@@ -1,57 +1,44 @@
-# Desktop Melee Android: overlay/input test 0.0.3
+# Desktop Melee Android prototype 0.0.3
 
-**This is not playable Melee.** Yellow and pink circles are diagnostic placeholders. There is no Melee engine, Nintendo content or disc loading in this APK. The purpose is to test Android home-screen visibility and controller routing on Odin 3 Ultra, before attempting the native engine port.
+**This is not playable Melee yet.** Four colored placeholders test the Android
+home-screen overlay, four-slot layout and controller routing on Odin 3 Ultra.
+The APK also loads a native C++/JNI bridge that will be used for the engine port.
 
-## Install and test
+## Important: one-time reinstall for stable updates
 
-Download the debug APK from the Android prerelease. Install directly in Android, not DroidDeck. Android 10/API 29 or newer is required. The prototype is Java-only with no native libraries, including on ARM64 devices.
+Versions 0.0.1 and 0.0.2 were signed with GitHub runner debug keys. Those keys
+were temporary and their private keys no longer exist, so Android cannot accept
+0.0.3 as an update over either old installation.
 
-1. Open **Desktop Melee Overlay Test**. Grant **Display over other apps** to this app.
-2. Allow notifications and leave the **Overlay control** notification channel enabled. This prototype deliberately requires a visible Stop notification.
-3. Tap **Watch demo**. It starts an animated, non-focusable overlay and opens Home. Check that the two circles appear, icons remain tappable and pages swipe normally.
-4. Open the app again and tap **Play demo with controller**. Use the left stick or D-pad to move the yellow circle, A to jump and X to flash white. The HUD shows window focus and the last recognized input.
-5. **Back/B or WATCH releases controller focus into Watch mode. STOP removes the overlay.** The notification and app also provide Stop. Turning the screen off or removing the app task ends the service.
+**Uninstall 0.0.1/0.0.2 once, then install 0.0.3.**
 
-Play mode intentionally takes window focus and captures touches across its window. The home screen remains visible but its icons are not usable until Watch mode. Actual controller labels, focus delivery and touch passthrough must be tested on Odin firmware. No root, accessibility service, screen capture, storage access or Internet permission is requested. Other overlays and apps' security policies can still block touch-through; do not disable Android security checks.
+Starting with 0.0.3, the workflow reuses one fixed prototype signing key from the
+GitHub release `android-prototype-signing-v1`. Future prototype APKs keep the
+same application ID (`com.desktopmelee.android`) and signing certificate and
+increment versionCode, so they are intended to install directly over 0.0.3 and
+later builds.
 
-The service starts only from an explicit user action; there is no boot receiver or automatic restart. Startup errors are shown in the app. Controller state resets on focus loss/disconnect. This is a one-controller routing test, not two-player support, AI combat or geometry detection.
+The signing key is intentionally public and test-only. It is not suitable for a
+Play Store or production release; a production package would use a different
+application ID and secure private key.
 
-## Build and verification
+## Test
 
-JDK 17, Gradle 8.9, Android SDK/platform 35, Build Tools 35.0.0, Android Gradle Plugin 8.7.3. Open this directory in Android Studio or run `gradle --no-daemon :app:assembleDebug :app:lintDebug` with that toolchain and ANDROID_HOME configured.
+1. Install 0.0.3 directly in Android, not DroidDeck.
+2. Grant **Display over other apps** and notifications.
+3. **Watch demo** animates four CPU placeholders while Home stays usable.
+4. **Play demo with controller** lets the Odin controller move P1 while three
+   CPU placeholders remain active.
+5. Back/B or WATCH releases focus; STOP or the notification removes the overlay.
 
-The **Android overlay prototype APK** workflow builds on the dedicated `android-overlay-prototype` branch. It runs 13 platform-independent input checks, compiles the APK, runs Android lint, checks the APK signature, records manifest metadata, and publishes a debug-only prerelease with SHA-256 hashes and matching source. Windows and Linux release code remains unchanged.
+Android 10/API 29 or newer is required. No disc, root, accessibility service,
+Internet or storage permission is requested.
 
-**Debug signing is temporary:** the runner generates a test key. Later test builds may require uninstalling this app before installation. No production signing keys are stored in the repository. Do not use this prototype package for persistent saved games. The APK has no built-in updater.
+## Build verification
 
-A successful build is not a hardware gameplay test. No actual Melee engine integration, performance claim or Odin validation is implied.
+CI runs the controller-state tests, builds an unsigned release APK, signs it with
+the stable prototype test key, runs Android lint, verifies package/version/SDK
+metadata, rejects unexpected network/storage permissions, and verifies that the
+APK certificate hash exactly matches the certificate used to sign it.
 
-## Android references
-
-- https://developer.android.com/build/releases/agp-8-7-0-release-notes
-- https://developer.android.com/develop/ui/views/notifications/notification-permission
-- https://developer.android.com/reference/android/view/WindowManager.LayoutParams
-- https://developer.android.com/about/versions/14/changes/fgs-types-required
-- https://developer.android.com/about/versions/15/behavior-changes-15
-
-## 0.0.3 milestone
-
-- Four placeholder fighter slots are visible at once.
-- Watch mode animates all four without taking launcher input focus.
-- Play mode gives the Odin controller to P1 while three CPU placeholders remain active.
-- The APK loads `libdesktopmelee_native.so` and calls a JNI status function from Java. This proves the Android app can host our own native C++ code before we begin moving the actual game/render path across.
-
-
-## Stable update signing
-
-Version 0.0.3 establishes a fixed prototype signing certificate for Android updates.
-The original 0.0.1 and 0.0.2 APKs were signed by GitHub's ephemeral debug keystores,
-so Android cannot accept 0.0.3 over either of those installs. Uninstall the old
-prototype once, then install 0.0.3. Future APKs built by this workflow use the
-same package name and signing certificate and are intended to install in place.
-
-Prototype certificate SHA-256:
-`8A:10:40:F5:F8:FA:ED:5E:49:EE:F8:21:18:AB:CD:95:8F:4F:25:99:E4:27:4E:80:CF:23:7D:01:9C:A2:C8:35`
-
-This prototype signing key is intentionally public and is not suitable for a
-production or store release.
+Version 0.0.3 uses versionCode 3. Every later update must increase versionCode.
