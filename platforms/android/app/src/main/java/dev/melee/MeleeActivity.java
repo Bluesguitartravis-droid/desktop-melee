@@ -110,6 +110,16 @@ public class MeleeActivity extends SDLActivity {
 
     @Override
     protected void onCreate(android.os.Bundle savedInstanceState) {
+        android.content.Intent intent = getIntent();
+        int orientationMode = intent != null ? intent.getIntExtra(
+            com.desktopmelee.android.DesktopMeleeActivity.EXTRA_ORIENTATION, 0) : 0;
+        if (orientationMode == 1) {
+            setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+        } else if (orientationMode == 2) {
+            setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
+        } else {
+            setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR);
+        }
         super.onCreate(savedInstanceState);
         if (mBrokenLibraries) {
             return;
@@ -279,5 +289,31 @@ public class MeleeActivity extends SDLActivity {
         }
         return new String[0];
     }
+
+    public int[] getDesktopArenaGeometry() {
+        android.graphics.Rect bounds;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            bounds = getWindowManager().getCurrentWindowMetrics().getBounds();
+        } else {
+            android.util.DisplayMetrics dm = new android.util.DisplayMetrics();
+            getWindowManager().getDefaultDisplay().getRealMetrics(dm);
+            bounds = new android.graphics.Rect(0, 0, dm.widthPixels, dm.heightPixels);
+        }
+        final int width = Math.max(1, bounds.width());
+        final int height = Math.max(1, bounds.height());
+        final boolean landscape = width >= height;
+        android.content.SharedPreferences p =
+            getSharedPreferences(com.desktopmelee.android.DesktopMeleeActivity.PREFS, MODE_PRIVATE);
+        int marginPct = p.getInt(landscape ? "landscapeMargin" : "portraitMargin", landscape ? 3 : 6);
+        int floorPct = p.getInt(landscape ? "landscapeFloor" : "portraitFloor", landscape ? 88 : 82);
+        marginPct = Math.max(0, Math.min(25, marginPct));
+        floorPct = Math.max(50, Math.min(98, floorPct));
+        int margin = Math.round(width * (marginPct / 100.0f));
+        int floor = Math.round(height * (floorPct / 100.0f));
+        floor = Math.max(1, Math.min(height - 1, floor));
+        int right = Math.max(margin + 1, width - margin);
+        return new int[] {0, 0, width, height, margin, floor, right, height};
+    }
+
 
 }
