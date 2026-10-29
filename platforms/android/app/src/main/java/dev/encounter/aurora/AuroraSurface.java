@@ -1,6 +1,7 @@
 package dev.encounter.aurora;
 
 import android.content.Context;
+import android.graphics.PixelFormat;
 import android.os.Build;
 import android.util.Log;
 import android.view.Surface;
@@ -14,6 +15,12 @@ public class AuroraSurface extends SDLSurface {
     public AuroraSurface(Context context) {
         super(context);
         getHolder().setKeepScreenOn(true);
+        if (context instanceof dev.melee.MeleeActivity &&
+                ((dev.melee.MeleeActivity) context).isDesktopOverlayEnabled()) {
+            setZOrderOnTop(true);
+            getHolder().setFormat(PixelFormat.TRANSLUCENT);
+            setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        }
     }
 
     @Override
