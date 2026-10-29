@@ -1,4 +1,4 @@
-name: Publish Android full Desktop Melee 0.1.0
+name: Publish Android full Desktop Melee 0.1.1
 on:
   push:
     branches: [android-full-desktop]
@@ -16,16 +16,16 @@ jobs:
       - name: Download validated full APK artifact
         run: |
           mkdir deliver
-          gh run download 40928770007 --repo "$GITHUB_REPOSITORY" --name Desktop-Melee-Android-Full-0.1.0 --dir deliver
+          gh run download 40962523211 --repo "$GITHUB_REPOSITORY" --name Desktop-Melee-Android-Full-0.1.1 --dir deliver
           cd deliver
           EXPECTED="$(awk 'NR==1 {print $1}' SHA256SUMS)"
-          printf '%s  %s\n' "$EXPECTED" Desktop-Melee-Android-Full-0.1.0.apk | sha256sum --check -
+          printf '%s  %s\n' "$EXPECTED" Desktop-Melee-Android-Full-0.1.1.apk | sha256sum --check -
           grep -F "package: name='com.desktopmelee.android'" APK-VERIFICATION.txt
-          grep -F "versionCode='4'" APK-VERIFICATION.txt
+          grep -F "versionCode='5'" APK-VERIFICATION.txt
       - name: Publish prerelease
         run: |
           cd deliver
-          TAG="android-full-v0.1.0-preview.1"
+          TAG="android-full-v0.1.1-preview.2"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then echo "Release already exists"; exit 1; fi
-          printf '%s\n' '# Desktop Melee Android Full 0.1.0 - preview 1' '' 'First APK built from the full native Android Melee engine.' '' '- Same com.desktopmelee.android package and stable test signing certificate as Android prototype 0.0.3; versionCode 4.' '- Pre-game Desktop Melee setup screen.' '- Orientation: Auto, Landscape, or Portrait.' '- Separate landscape and portrait horizontal-margin and floor-height profiles.' '- 2, 3, or 4 fighters; Player 1 vs CPUs or Watch CPUs; CPU level and stocks.' '- Full native Android disc picker, graphics/audio settings, touch/controller support, caches and Vulkan renderer.' '' 'Current limitation: this preview uses the ordinary foreground Android game activity. Transparent native gameplay over the Android Home screen is the next integration step.' '' 'No disc image or game data is included. Select your own local USA 1.02 disc image.' > RELEASE-NOTES.md
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target android-full-desktop --prerelease --latest=false --title "Desktop Melee Android Full 0.1.0 - preview 1" --notes-file RELEASE-NOTES.md Desktop-Melee-Android-Full-0.1.0.apk APK-VERIFICATION.txt SHA256SUMS
+          printf '%s\n' '# Desktop Melee Android Full 0.1.1 - preview 2' '' 'First APK built from the full native Android Melee engine.' '' '- Same com.desktopmelee.android package and stable test signing certificate as Android prototype 0.0.3; versionCode 4.' '- Pre-game Desktop Melee setup screen.' '- Orientation: Auto, Landscape, or Portrait.' '- Separate landscape and portrait horizontal-margin and floor-height profiles.' '- 2, 3, or 4 fighters; Player 1 vs CPUs or Watch CPUs; CPU level and stocks.' '- Full native Android disc picker, graphics/audio settings, touch/controller support, caches and Vulkan renderer.' '' 'Current limitation: this preview uses the ordinary foreground Android game activity. Transparent native gameplay over the Android Home screen is the next integration step.' '' 'No disc image or game data is included. Select your own local USA 1.02 disc image.' > RELEASE-NOTES.md
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target android-full-desktop --prerelease --latest=false --title "Desktop Melee Android Full 0.1.1 - preview 2" --notes-file RELEASE-NOTES.md Desktop-Melee-Android-Full-0.1.1.apk APK-VERIFICATION.txt SHA256SUMS
