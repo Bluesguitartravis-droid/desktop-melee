@@ -3,6 +3,7 @@
 #include "desktop_game.h"
 #include "launcher.h"
 #include "pc.h"
+#include "android_hooks.h"
 
 #include <aurora/desktop.h>
 #include <SDL3/SDL.h>
@@ -133,6 +134,19 @@ extern "C" bool pc_desktop_host_init(SDL_Window* window) {
         geometry.platform_left, geometry.platform_top,
         geometry.platform_right, geometry.platform_bottom);
     return true;
+#elif defined(__ANDROID__)
+    AuroraDesktopGeometry geometry{};
+    if (!pc_android_get_desktop_geometry(&geometry)) {
+        pc_log_line("desktop: Android arena geometry unavailable");
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Desktop Melee",
+            "Could not determine the Android combat area.", window);
+        return false;
+    }
+    initialized = true;
+    pc_log_line("desktop: Android full-engine preview - arena %ux%u floor (%d,%d)-(%d,%d)",
+        geometry.width, geometry.height, geometry.platform_left, geometry.platform_top,
+        geometry.platform_right, geometry.platform_bottom);
+    return true;
 #elif defined(__linux__) && !defined(__ANDROID__)
     AuroraDesktopGeometry geometry{};
     if (!aurora_desktop_get_geometry(&geometry) || !geometry.width || !geometry.height) {
@@ -172,6 +186,11 @@ extern "C" void pc_desktop_host_tick(void) {
 #elif defined(__linux__) && !defined(__ANDROID__)
     if (aurora_desktop_take_settings_request())
         pc_menu_toggle();
+#elif defined(__ANDROID__)
+    /* Android uses the ordinary SDL/Vulkan activity surface for this first
+     * full-engine milestone. Desktop arena rules are active, but transparent
+     * home-screen presentation is a separate follow-up. */
+    return;
 #endif
     const bool wanted = pc_desktop_match_active() && !pc_menu_is_open() && !pc_exit_requested;
     if (wanted != aurora_desktop_active() && !presentation_failed) {
@@ -191,7 +210,9 @@ extern "C" void pc_desktop_host_shutdown(void) {
         return;
     initialized = false;
     aurora_desktop_enable(false);
-#if defined(_WIN32)
+#if defined(__ANDROID__)
+    return;
+#elif defined(_WIN32)
     Shell_NotifyIconW(NIM_DELETE, &tray);
     if (registered_hotkey)
         UnregisterHotKey(controls_window, kSettingsHotkey);
