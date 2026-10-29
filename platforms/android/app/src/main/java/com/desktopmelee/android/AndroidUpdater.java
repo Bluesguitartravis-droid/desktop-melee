@@ -117,8 +117,9 @@ public final class AndroidUpdater implements AutoCloseable {
             request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
             request.setAllowedOverMetered(true);
             request.setAllowedOverRoaming(false);
+            String safeTag = release.tag.replaceAll("[^A-Za-z0-9._-]", "_");
             request.setDestinationInExternalFilesDir(activity, Environment.DIRECTORY_DOWNLOADS,
-                "Desktop-Melee-update.apk");
+                "Desktop-Melee-" + safeTag + ".apk");
             long id = downloads.enqueue(request);
             prefs.edit()
                 .putLong("updateDownloadId", id)
