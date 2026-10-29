@@ -47,7 +47,17 @@ int main() {
     {
         std::array<Rect,2> disconnected{{{0,0,1920,900},{1920,1000,3840,2080}}};
         std::array<int32_t,2> floors{{852,2032}};
-        assert(!make_span(disconnected,floors,g));
+        assert(make_span(disconnected,floors,g));
+        assert(g.screen_x==0 && g.screen_y==0 && g.width==3840 && g.height==2080);
+        assert(g.platform_top==2032);
     }
-    puts("monitor geometry: single displays and all-monitor spans passed");
+    {
+        std::array<Rect,5> staggered{{{-1920,-1080,-960,0},{-960,-1080,0,0},
+            {0,-1080,2560,0},{2560,-900,3200,-260},{640,0,1920,1080}}};
+        std::array<int32_t,5> floors{{-48,-48,-48,-308,1040}};
+        assert(make_span(staggered,floors,g));
+        assert(g.screen_x==-1920 && g.screen_y==-1080);
+        assert(g.width==5120 && g.height==2160 && g.platform_top==2120);
+    }
+    puts("monitor geometry: single, side-by-side and staggered all-monitor spans passed");
 }
