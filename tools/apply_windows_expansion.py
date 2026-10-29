@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """One-time migration; resulting ordinary source files are committed before build."""
 from pathlib import Path
-import base64, hashlib, json, zlib
+import base64, hashlib, json, subprocess, zlib
 raw = zlib.decompress(base64.b64decode(Path(__file__).with_suffix('.b64').read_text()))
 assert hashlib.sha256(raw).hexdigest() == '7d612fc3b9ae17c16bc0d32e916f73efaa72047c953a82ff8bb03a2e2ed66f1d'
 spec = json.loads(raw)
@@ -29,7 +29,12 @@ def function_bounds(text, signature):
     raise RuntimeError('Unclosed function: '+signature)
 changed={}
 for edit in spec['replacements']:
-    name=edit['path']; p=root/name
+    name=edit['path']
+    # The dedicated build already runs the new tests. Workflow maintenance
+    # stays outside this source-only bot commit; no extra permission needed.
+    if name.startswith('.github/'):
+        continue
+    p=root/name
     if not p.resolve().is_relative_to(root): raise RuntimeError('Unsafe path')
     text=changed[name] if name in changed else p.read_text()
     if 'append' in edit: text+=edit['append']
@@ -40,10 +45,13 @@ for edit in spec['replacements']:
         text=text.replace(edit['old'],edit['new'],1)
     changed[name]=text
 for name,text in spec['new_files'].items():
+    if not (root/name).resolve().is_relative_to(root): raise RuntimeError('Unsafe new path')
     if (root/name).exists(): raise RuntimeError('New file already exists: '+name)
     changed[name]=text
 for name,text in changed.items():
     p=root/name; p.parent.mkdir(parents=True,exist_ok=True); p.write_text(text)
+# The upstream ignore list excludes new docs; this guide is intended source.
+subprocess.run(['git','add','-f','docs/DESKTOP_WINDOWS_018.md'],cwd=root,check=True)
 print('Applied Windows expansion to',len(changed),'source/test/doc files')
 Path(__file__).with_suffix('.b64').unlink()
 Path(__file__).unlink()
