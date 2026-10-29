@@ -57,7 +57,7 @@ jobs:
           if grep -E 'uses-permission:.*(INTERNET|READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|QUERY_ALL_PACKAGES)' deliver/APK-VERIFICATION.txt; then
             echo 'Unexpected permission in prototype'; exit 1
           fi
-          git archive --format=zip --output=deliver/Desktop-Melee-Android-Overlay-Test-Source.zip HEAD android-prototype .github/workflows/android-overlay-prototype.yml
+          git archive --format=zip --output=deliver/Desktop-Melee-Android-Prototype-Source-0.0.2.zip HEAD android-prototype .github/workflows/android-overlay-prototype.yml
           cp android-prototype/README.md deliver/ANDROID-TEST-README.md
           printf 'Source commit: %s\nNo on-device test performed by this build.\n' "$BUILD_SHA" >> deliver/APK-VERIFICATION.txt
           cd deliver
