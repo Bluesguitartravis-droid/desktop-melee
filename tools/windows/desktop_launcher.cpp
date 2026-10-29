@@ -507,7 +507,7 @@ void start() {
     const bool geometry_ok=span ? aurora::desktop::monitors::geometry_all(geometry)
                                 : aurora::desktop::monitors::geometry(monitor,geometry);
     if (!geometry_ok) {
-        status(span ? L"All-monitor arena unavailable. Displays must share a horizontal band."
+        status(span ? L"All-monitor arena unavailable. Refresh displays and try again."
                     : L"Selected display is unavailable. Click Refresh and choose a connected display.");
         return;
     }
