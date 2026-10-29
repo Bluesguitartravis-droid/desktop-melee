@@ -3,6 +3,7 @@
 
 #include "pc.h"
 #include "widescreen.h"
+#include "android_hooks.h"
 #include <aurora/desktop.h>
 #include <errno.h>
 #include <math.h>
@@ -185,7 +186,12 @@ void pc_desktop_begin_match(StartMeleeData* start)
     if (!pc_desktop_requested() || start->rules.stkind != St_Kind_Last) {
         return;
     }
-    if (!aurora_desktop_get_geometry(&geometry) || geometry.width == 0 ||
+#if defined(__ANDROID__)
+    const bool have_geometry = pc_android_get_desktop_geometry(&geometry);
+#else
+    const bool have_geometry = aurora_desktop_get_geometry(&geometry);
+#endif
+    if (!have_geometry || geometry.width == 0 ||
         geometry.height == 0 || geometry.platform_left < 0 ||
         geometry.platform_right <= geometry.platform_left ||
         (uint32_t) geometry.platform_right > geometry.width ||
