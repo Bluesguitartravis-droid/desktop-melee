@@ -2,6 +2,7 @@
 #include <aurora/desktop_monitor_geometry.hpp>
 #include <cassert>
 #include <cstdio>
+#include <array>
 using namespace aurora::desktop::monitor_geometry;
 int main() {
     AuroraDesktopGeometry g{};
@@ -29,5 +30,24 @@ int main() {
     assert(!make({0,0,0,100},primary,nullptr,g));
     assert(!make({0,0,20000,100},primary,nullptr,g));
     assert(!make({0,0,100,3},primary,nullptr,g));
-    puts("monitor geometry: primary, secondary, negative origins, portrait, taskbar isolation and fallback passed");
+    {
+        std::array<Rect,2> screens{{{0,0,1920,1080},{1920,0,3840,1080}}};
+        std::array<int32_t,2> floors{{1040,1040}};
+        assert(make_span(screens,floors,g));
+        assert(g.screen_x==0 && g.screen_y==0 && g.width==3840 && g.height==1080);
+        assert(g.platform_left==0 && g.platform_right==3840 && g.platform_top==1040);
+    }
+    {
+        std::array<Rect,2> screens{{{-2560,-200,0,1240},{0,0,1920,1080}}};
+        std::array<int32_t,2> floors{{1200,1040}};
+        assert(make_span(screens,floors,g));
+        assert(g.screen_x==-2560 && g.screen_y==-200 && g.width==4480 && g.height==1440);
+        assert(g.platform_top==1240); // absolute y=1040, visible on both monitors
+    }
+    {
+        std::array<Rect,2> disconnected{{{0,0,1920,900},{1920,1000,3840,2080}}};
+        std::array<int32_t,2> floors{{852,2032}};
+        assert(!make_span(disconnected,floors,g));
+    }
+    puts("monitor geometry: single displays and all-monitor spans passed");
 }
