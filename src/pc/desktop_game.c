@@ -206,10 +206,10 @@ void pc_desktop_begin_match(StartMeleeData* start)
     floor_left = view_left + geometry.platform_left * units_per_pixel;
     floor_right = view_left + geometry.platform_right * units_per_pixel;
     match_armed = true;
-    pc_log_line("desktop: monitor %ux%u, platform [%d,%d,%d,%d]",
-                geometry.width, geometry.height, geometry.platform_left,
-                geometry.platform_top, geometry.platform_right,
-                geometry.platform_bottom);
+    pc_log_line("desktop: monitor origin=%d,%d size=%ux%u platform=[%d,%d,%d,%d] fighters=%d",
+                geometry.screen_x, geometry.screen_y, geometry.width, geometry.height,
+                geometry.platform_left, geometry.platform_top, geometry.platform_right,
+                geometry.platform_bottom, desktop_roster_size);
 }
 
 MapCollData* pc_desktop_prepare_collision(MapCollData* source)
