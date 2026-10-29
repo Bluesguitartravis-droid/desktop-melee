@@ -41,6 +41,7 @@ bool pc_desktop_apply_camera(struct HSD_CObj* camera,
 bool pc_desktop_spawn_position(int slot, bool rebirth, float* x, float* y,
                                float* z);
 void pc_desktop_hud_position(int slot, int count, float* x, float* y);
+bool pc_desktop_apply_hud_camera(struct HSD_CObj* camera);
 
 #ifdef __cplusplus
 }
