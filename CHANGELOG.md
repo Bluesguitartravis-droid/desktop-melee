@@ -1,5 +1,20 @@
 # Desktop Melee changes
 
+## 0.1.9 — 2026-10-29
+
+### All-monitor arena
+
+- Added an opt-in **Span match across all monitors** toggle to the Windows launcher.
+- The overlay, camera, blast zones, main floor and window-platform coordinate system use the full Windows virtual desktop in span mode.
+- Negative monitor origins and mixed monitor sizes are supported. A single common floor is placed inside the vertical band shared by every monitor; layouts with no shared horizontal band are rejected rather than creating an invisible arena.
+- Window tops from every monitor participate in the same match. Single-monitor selection remains the default.
+- Wallpaper terrain is intentionally disabled in span mode for this release; per-monitor wallpaper composition needs a separate mapping pass.
+
+### Verification
+
+- Added span-geometry tests for side-by-side monitors, negative origins, mismatched heights and non-overlapping vertical layouts.
+- Existing two-to-four-player, CPU targeting, collision, fighter and updater regression suites remain required.
+
 ## 0.1.7 Linux preview 1 — 2026-10-28
 
 First native Linux x86_64 preview, with Steam Deck X11 Desktop Mode as a
