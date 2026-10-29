@@ -293,7 +293,7 @@ static LONG WINAPI crash_handler(EXCEPTION_POINTERS* info) {
 
 static void usage(const char* argv0) {
     fprintf(stderr,
-        "usage: %s [--desktop] [--desktop-players N] [--desktop-watch 0|1]\n"
+        "usage: %s [--desktop] [--android-transparent] [--desktop-players N] [--desktop-watch 0|1]\n"
         "          [--desktop-cpu N] [--desktop-stocks N] [--no-card] [--dvd] [disc image]\n"
         "       %s --version | --help\n"
         "No disc argument opens the launcher. MELEE_BACKEND, MELEE_VSYNC, MELEE_LOG_FILE,\n"
@@ -495,6 +495,8 @@ MELEE_EXPORT int main(int argc, char* argv[]) {
             card = false;
         } else if (strcmp(argv[i], "--desktop") == 0) {
             SDL_setenv_unsafe("MELEE_DESKTOP", "1", 1);
+        } else if (strcmp(argv[i], "--android-transparent") == 0) {
+            SDL_setenv_unsafe("MELEE_ANDROID_TRANSPARENT", "1", 1);
         } else if (strcmp(argv[i], "--desktop-players") == 0 ||
                    strcmp(argv[i], "--desktop-watch") == 0 ||
                    strcmp(argv[i], "--desktop-cpu") == 0 ||
