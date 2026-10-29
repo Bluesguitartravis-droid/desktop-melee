@@ -17,7 +17,7 @@ public class AuroraSurface extends SDLSurface {
         getHolder().setKeepScreenOn(true);
         if (context instanceof dev.melee.MeleeActivity &&
                 ((dev.melee.MeleeActivity) context).isDesktopOverlayEnabled()) {
-            setZOrderOnTop(true);
+            setZOrderMediaOverlay(true);
             getHolder().setFormat(PixelFormat.TRANSLUCENT);
             setBackgroundColor(android.graphics.Color.TRANSPARENT);
         }
