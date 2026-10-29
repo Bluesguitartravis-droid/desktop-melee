@@ -1,4 +1,4 @@
-# Desktop Melee for Windows — 0.1.8
+# Desktop Melee for Windows — 0.1.9
 
 An independent Windows implementation of the desktop-fighting idea: native
 Super Smash Bros. Melee, a transparent overlay, a stage aligned with the
@@ -17,7 +17,7 @@ CPU targeting, spawn/respawn placement, native collision and knockout ordering.
 Live multi-monitor behavior, controller enumeration and sustained four-player
 performance still require testing on Windows with the user's own local disc.
 
-## Windows 0.1.8: four fighters and display selection
+## Windows 0.1.9: four fighters and all-monitor span mode
 
 Use **Fighters** to choose 2, 3 or 4 active slots. Presets provide **Player 1
 vs. CPUs**, **Watch CPUs**, **Local players**, or a **Custom player / CPU mix**.
@@ -26,11 +26,16 @@ Human fighters must use different controller ports. These are free-for-all stock
 matches; team battles are not part of 0.1.8.
 
 Use **Display** to keep the arena on the primary screen automatically or select
-a different connected monitor. **Refresh** rescans displays. The selected screen
+a different connected monitor. **Refresh** rescans displays. Or enable **Span
+match across all monitors** before starting the match to use the Windows virtual
+desktop as one arena. The selected screen
 provides the arena bounds, floor, window-platform coordinates and wallpaper
 source. A disconnected saved display is reported instead of silently falling
 back to another screen. Displays with no usable bottom taskbar get a lower-edge
-fallback floor. Only one monitor hosts the arena at a time.
+fallback floor. Single-display mode uses one monitor at a time. Span mode uses all connected
+monitors with one common floor that remains visible on every display. Wallpaper
+terrain is disabled in span mode for now; window platforms remain active across
+the full span.
 
 ## GitHub releases and startup update checks
 
@@ -300,7 +305,7 @@ different colors when possible.
   continue updating while the match runs.
 - A bottom taskbar is the supported layout. Auto-hide and side/top taskbars
   use a fallback lower-edge floor and are not validated to match a visible bar.
-- Windows 0.1.8 offers **2-4 local fighters**. Each active slot can be CPU or
+- Windows 0.1.9 offers **2-4 local fighters**. Each active slot can be CPU or
   a unique controller port 1-4. It is for local desktop matches; this custom
   arena is not a supported netplay or competitive setup.
 - Window tops are one-way platforms; their sides and bottoms are not walls
