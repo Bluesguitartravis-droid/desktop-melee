@@ -143,12 +143,5 @@ public final class DesktopMeleeActivity extends Activity {
         finish();
         overridePendingTransition(0, 0);
         return;
-        /*
-            "--desktop",
-            "--desktop-players", Integer.toString(fighterCount),
-            "--desktop-watch", Integer.toString(watch),
-            "--desktop-cpu", Integer.toString(cpuLevel),
-            "--desktop-stocks", Integer.toString(stockCount)
-        }); */
     }
 }
