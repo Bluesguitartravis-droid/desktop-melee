@@ -39,19 +39,16 @@ inline bool make_span(std::span<const Rect> monitors, std::span<const int32_t> f
     if (monitors.empty() || monitors.size() != floor_tops.size()) return false;
     int32_t left=monitors[0].left, top=monitors[0].top;
     int32_t right=monitors[0].right, bottom=monitors[0].bottom;
-    int32_t common_top=monitors[0].top, common_bottom=monitors[0].bottom;
     int32_t floor=floor_tops[0];
     for (size_t i=0;i<monitors.size();++i) {
         if (!valid(monitors[i])) return false;
         left=std::min(left,monitors[i].left); top=std::min(top,monitors[i].top);
         right=std::max(right,monitors[i].right); bottom=std::max(bottom,monitors[i].bottom);
-        common_top=std::max(common_top,monitors[i].top);
-        common_bottom=std::min(common_bottom,monitors[i].bottom);
-        floor=std::min(floor,floor_tops[i]);
+        floor=std::max(floor,floor_tops[i]);
     }
     const int64_t w=int64_t(right)-left, h=int64_t(bottom)-top;
-    if (w < 1 || h < 4 || w > 16384 || h > 16384 || common_bottom-common_top < 4) return false;
-    floor=std::clamp(floor,common_top+1,common_bottom-2);
+    if (w < 1 || h < 4 || w > 16384 || h > 16384) return false;
+    floor=std::clamp(floor,top+1,bottom-2);
     out={left,top,uint32_t(w),uint32_t(h),0,floor-top,int32_t(w),int32_t(h)};
     return out.platform_top > 0 && uint32_t(out.platform_top) < out.height;
 }
