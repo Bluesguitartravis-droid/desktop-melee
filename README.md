@@ -11,11 +11,11 @@ experimental wallpaper terrain.
 |---|---:|---|---|
 | **Windows x64** | **0.1.10** | **[Windows installer](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/desktop-v0.1.10/Desktop-Melee-Setup-x64.exe)** | Desktop overlay, 2-4 fighters, selectable display, all-monitor span |
 | **Linux x86_64** | **0.1.7 Linux preview 1** | **[Linux AppImage](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/desktop-v0.1.7-linux.1/Desktop-Melee-Linux-x86_64.AppImage)** | Native Linux preview; desktop overlay requires composited X11 |
-| **Android ARM64** | **0.1.1 transparent preview 2** | **[Android APK](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/android-full-v0.1.1-preview.2/Desktop-Melee-Android-Full-0.1.1.apk)** | Full native engine + orientation-aware Home-screen transparency preview |
+| **Android ARM64** | **0.1.3 updater target preview 4** | **[Android APK](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/android-full-v0.1.3-preview.4/Desktop-Melee-Android-Full-0.1.3.apk)** | Full native engine + Home-screen overlay + built-in updater |
 
 **[View all releases, portable packages, source archives and checksums](https://github.com/Bluesguitartravis-droid/desktop-melee/releases)**
 
-> **Android update note:** 0.0.3 established the stable signing certificate. Android Full 0.1.1 uses the same package/signature with versionCode 5, so it is intended to install over 0.0.3 or Full 0.1.0. If you still have 0.0.1 or 0.0.2, uninstall that old build once first.
+> **Android update note:** Android Full 0.1.2 introduced the built-in updater; 0.1.3 is the first newer target release for testing it. Both use the same stable package/signing identity. If you still have 0.0.1 or 0.0.2, uninstall that old build once first.
 
 ## Download and play on Windows
 
@@ -77,34 +77,38 @@ Linux native builds, collision regressions and virtual-X11 integration
 checks are automated. This preview has not been certified on Steam Deck
 hardware or tested through a real match there.
 
-## Android prototype
+## Android
 
-**[Download Android Full 0.1.1 transparent preview 2](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/android-full-v0.1.1-preview.2/Desktop-Melee-Android-Full-0.1.1.apk)**
+**[Download Android Full 0.1.3 updater target preview 4](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/android-full-v0.1.3-preview.4/Desktop-Melee-Android-Full-0.1.3.apk)**
 
-[Android Full 0.1.1 release and verification files](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/tag/android-full-v0.1.1-preview.2)
+[Android Full 0.1.3 release and verification files](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/tag/android-full-v0.1.3-preview.4)
+· [0.1.2 updater baseline for update testing](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/tag/android-full-v0.1.2-preview.3)
 · [Previous overlay prototype 0.0.3](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/tag/android-prototype-v0.0.3-build.17)
 
-Android Full 0.1.1 is built from the repository's **real native Android Melee
-engine**, not placeholder fighters. It adds a pre-game Desktop Melee setup
-screen with Auto/Landscape/Portrait orientation, separate landscape/portrait
-combat-area margins and floor height, 2-4 fighters, CPU/watch choices, CPU
-level and stocks. It then launches the existing native disc picker, controller/
-touch input, Vulkan renderer and game settings.
+Android Full is built from the repository's **real native Android Melee engine**.
+It includes Auto/Landscape/Portrait combat-area profiles, 2-4 fighters,
+Player-vs-CPU and Watch modes, controller/touch input, native Vulkan rendering
+and the Home-screen transparency path.
 
-Preview 2 adds the first native **Home-screen transparency path**: a translucent
-Android game Activity and SDL surface, premultiplied-alpha Vulkan/WebGPU surface,
-and Desktop Melee's alpha-preserving presentation shader. Play mode keeps game
-input focus; Watch mode makes the window non-touchable/non-focusable so the Home
-screen can remain interactive underneath. A normal foreground-rendering fallback
-is available from the setup screen.
+### Built-in updater
 
-This remains a physical-device preview: build/sign/package validation passed,
-but native Home-screen composition still needs testing on the Odin 3 Ultra.
+Android Full 0.1.2 introduced an in-app GitHub updater. Automatic checks are on
+by default and run when the setup screen opens, at most once every six hours.
+There is also a manual **Check for updates now** button.
 
-Android 0.0.3 established the stable signing certificate. Full 0.1.1 uses the
-same application ID/signature with versionCode 5 and should install over 0.0.3
-or Full 0.1.0.
-If you still have 0.0.1 or 0.0.2, uninstall that older prototype once first.
+The updater only considers `android-full-v...` GitHub release tags and
+`Desktop-Melee-Android-Full-...` APK assets. It downloads through Android's
+DownloadManager, verifies the SHA-256 digest published by GitHub, and only then
+opens Android's normal package installer. Android still requires user approval
+for installation and may ask once to allow installs from Desktop Melee.
+
+For an end-to-end updater test, install **0.1.2** and open Desktop Melee. It
+should discover **0.1.3** as the newer Android Full release.
+
+0.1.3 keeps that updater and adds safer transparent-overlay fallback handling.
+All Full builds use the stable `com.desktopmelee.android` package/signing
+identity. If you still have 0.0.1 or 0.0.2, uninstall that older prototype once
+before moving onto the stable-signing builds.
 
 ## Startup updates
 
