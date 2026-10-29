@@ -293,7 +293,8 @@ static LONG WINAPI crash_handler(EXCEPTION_POINTERS* info) {
 
 static void usage(const char* argv0) {
     fprintf(stderr,
-        "usage: %s [--desktop] [--no-card] [--dvd] [disc image (iso/gcm/ciso/rvz/...)]\n"
+        "usage: %s [--desktop] [--desktop-players N] [--desktop-watch 0|1]\n"
+        "          [--desktop-cpu N] [--desktop-stocks N] [--no-card] [--dvd] [disc image]\n"
         "       %s --version | --help\n"
         "No disc argument opens the launcher. MELEE_BACKEND, MELEE_VSYNC, MELEE_LOG_FILE,\n"
         "MELEE_DEBUG and the other MELEE_* knobs are documented in README.md.\n",
@@ -422,7 +423,7 @@ static AuroraBackend backend_from_env(void) {
 static void pc_env_file_bootstrap(void) {
     const char* paths[] = {
 #if defined(__ANDROID__)
-        "/sdcard/Android/data/dev.melee.game/files/melee-env.txt",
+        "/sdcard/Android/data/com.desktopmelee.android/files/melee-env.txt",
 #endif
         "melee-env.txt",
     };
@@ -494,6 +495,22 @@ MELEE_EXPORT int main(int argc, char* argv[]) {
             card = false;
         } else if (strcmp(argv[i], "--desktop") == 0) {
             SDL_setenv_unsafe("MELEE_DESKTOP", "1", 1);
+        } else if (strcmp(argv[i], "--desktop-players") == 0 ||
+                   strcmp(argv[i], "--desktop-watch") == 0 ||
+                   strcmp(argv[i], "--desktop-cpu") == 0 ||
+                   strcmp(argv[i], "--desktop-stocks") == 0) {
+            if (i + 1 >= argc) {
+                fprintf(stderr, "%s: %s needs a value\n", argv[0], argv[i]);
+                usage(argv[0]);
+            }
+            const char* option = argv[i];
+            const char* value = argv[++i];
+            const char* env_name =
+                strcmp(option, "--desktop-players") == 0 ? "MELEE_DESKTOP_PLAYERS" :
+                strcmp(option, "--desktop-watch") == 0 ? "MELEE_DESKTOP_WATCH" :
+                strcmp(option, "--desktop-cpu") == 0 ? "MELEE_DESKTOP_CPU" :
+                "MELEE_DESKTOP_STOCKS";
+            SDL_setenv_unsafe(env_name, value, 1);
         } else if (strcmp(argv[i], "--version") == 0) {
             printf("melee-pc %s\n", pc_app_version());
             return 0;
