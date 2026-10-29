@@ -42,7 +42,7 @@ int main() {
         std::array<int32_t,2> floors{{1200,1040}};
         assert(make_span(screens,floors,g));
         assert(g.screen_x==-2560 && g.screen_y==-200 && g.width==4480 && g.height==1440);
-        assert(g.platform_top==1240); // absolute y=1040, visible on both monitors
+        assert(g.platform_top==1400); // absolute y=1200, lowest monitor floor
     }
     {
         std::array<Rect,2> disconnected{{{0,0,1920,900},{1920,1000,3840,2080}}};
