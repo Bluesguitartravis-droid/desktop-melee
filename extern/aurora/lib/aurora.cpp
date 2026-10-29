@@ -3,6 +3,7 @@
 #include <aurora/performance.h>
 #include "android_performance.hpp"
 #include <cmath>
+#include <cstdlib>
 
 #ifdef AURORA_ENABLE_GX
 #include "gfx/resources.hpp"
@@ -356,6 +357,14 @@ void end_frame() noexcept {
     wgpu::TextureView currentView;
     auto surfaceStatus = wgpu::SurfaceGetCurrentTextureStatus::Error;
     const bool desktopPresent = desktop::active();
+#if defined(__ANDROID__)
+    const char* androidTransparentEnv = std::getenv("MELEE_ANDROID_TRANSPARENT");
+    const bool androidTransparent =
+        androidTransparentEnv != nullptr && androidTransparentEnv[0] == '1';
+#else
+    const bool androidTransparent = false;
+#endif
+    const bool transparentPresent = desktopPresent || androidTransparent;
     if (desktopPresent) {
       currentTexture = desktop::frame_target();
       if (currentTexture) currentView = currentTexture.CreateView();
@@ -391,7 +400,7 @@ void end_frame() noexcept {
       wgpu::BindGroup presentBindGroup;
       if (rmlBindGroup && !rmlOverlay) {
         presentBindGroup = rmlBindGroup;
-      } else if (desktopPresent || webgpu::get_resampler() == SAMPLER_BILINEAR) {
+      } else if (transparentPresent || webgpu::get_resampler() == SAMPLER_BILINEAR) {
         presentBindGroup = webgpu::g_CopyBindGroup;
       } else {
         const auto& resampledSource = webgpu::resample_present_source(encoder, viewport);
@@ -413,7 +422,7 @@ void end_frame() noexcept {
         };
         const auto pass = encoder.BeginRenderPass(&renderPassDescriptor);
         // Copy EFB -> XFB (swapchain)
-        pass.SetPipeline(desktopPresent ? webgpu::g_CopyTransparentPipeline : webgpu::g_CopyPipeline);
+        pass.SetPipeline(transparentPresent ? webgpu::g_CopyTransparentPipeline : webgpu::g_CopyPipeline);
         pass.SetBindGroup(0, presentBindGroup, 0, nullptr);
         /* The acquired texture's own size, not the configured one: a browser
          * canvas that the page resized (SDL follows its CSS size) hands back
