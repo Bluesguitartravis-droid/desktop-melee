@@ -2,6 +2,9 @@
 #include <aurora/desktop.h>
 #include "desktop_window_geometry.hpp"
 #include "desktop_windows.hpp"
+#ifdef _WIN32
+#include <aurora/desktop_monitor_windows.hpp>
+#endif
 
 #include <algorithm>
 #include <chrono>
@@ -94,8 +97,32 @@ std::vector<geometry::Window> enumerate_windows(const AuroraDesktopGeometry& des
   const DWORD our_process = GetCurrentProcessId();
   std::vector<geometry::Window> windows;
   std::vector<HWND> visited;
-  windows.reserve(32);
+  windows.reserve(40);
   visited.reserve(128);
+  if (aurora::desktop::monitors::all_requested()) {
+    const auto displays = aurora::desktop::monitors::enumerate();
+    const int32_t main_floor_abs = desktop.screen_y + desktop.platform_top;
+    uint64_t synthetic = UINT64_C(0xF000000000000000);
+    for (const auto& monitor : displays) {
+      aurora::desktop::monitors::TaskbarQuery query;
+      query.monitor = monitor.handle;
+      EnumWindows(aurora::desktop::monitors::taskbar_window,
+                  reinterpret_cast<LPARAM>(&query));
+      const auto bar = aurora::desktop::monitors::rect(query.rect);
+      AuroraDesktopGeometry local{};
+      if (!aurora::desktop::monitor_geometry::make(
+              aurora::desktop::monitors::rect(monitor.info.rcMonitor),
+              aurora::desktop::monitors::rect(monitor.info.rcWork),
+              query.found ? &bar : nullptr, local))
+        continue;
+      const int32_t floor_abs = local.screen_y + local.platform_top;
+      if (floor_abs >= main_floor_abs - 2) continue;
+      const auto& r = monitor.info.rcMonitor;
+      windows.push_back({synthetic++,
+          {r.left - desktop.screen_x, floor_abs - desktop.screen_y,
+           r.right - desktop.screen_x, r.bottom - desktop.screen_y}});
+    }
+  }
   /* GetWindow's order is explicit. Bound the traversal and detect repeats:
    * apps may destroy/reorder windows while this read-only snapshot is made. */
   for (HWND window = GetTopWindow(nullptr); window && visited.size() < MaxVisitedWindows &&
