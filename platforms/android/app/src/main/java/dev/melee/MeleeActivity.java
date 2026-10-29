@@ -102,9 +102,99 @@ public class MeleeActivity extends SDLActivity {
     private boolean mFullscreen = true;
     private boolean mDesktopOverlay;
     private boolean mDesktopWatch;
+    private android.view.WindowManager mOverlayWindowManager;
+    private android.view.View mOverlayRoot;
+    private boolean mSystemOverlayAttached;
 
     public boolean isDesktopOverlayEnabled() { return mDesktopOverlay; }
     public boolean isDesktopWatchMode() { return mDesktopWatch; }
+
+    private void attachSystemOverlay() {
+        if (!mDesktopOverlay || mSystemOverlayAttached || isFinishing()) {
+            return;
+        }
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M ||
+                !android.provider.Settings.canDrawOverlays(this)) {
+            android.widget.Toast.makeText(this,
+                "Desktop Melee overlay permission is not available; staying in foreground mode.",
+                android.widget.Toast.LENGTH_LONG).show();
+            mDesktopOverlay = false;
+            return;
+        }
+        if (mLayout == null) {
+            mDesktopOverlay = false;
+            return;
+        }
+        try {
+            android.view.ViewParent parent = mLayout.getParent();
+            if (parent instanceof android.view.ViewGroup) {
+                ((android.view.ViewGroup) parent).removeView(mLayout);
+            }
+            mLayout.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+            mOverlayWindowManager =
+                (android.view.WindowManager) getSystemService(android.content.Context.WINDOW_SERVICE);
+
+            int flags = android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN |
+                android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS |
+                android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED;
+            if (mDesktopWatch) {
+                flags |= android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
+                    android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+            }
+
+            android.view.WindowManager.LayoutParams lp =
+                new android.view.WindowManager.LayoutParams(
+                    android.view.WindowManager.LayoutParams.MATCH_PARENT,
+                    android.view.WindowManager.LayoutParams.MATCH_PARENT,
+                    android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                    flags,
+                    android.graphics.PixelFormat.TRANSLUCENT);
+            lp.gravity = android.view.Gravity.TOP | android.view.Gravity.START;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                lp.layoutInDisplayCutoutMode =
+                    android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
+            }
+            mOverlayWindowManager.addView(mLayout, lp);
+            mOverlayRoot = mLayout;
+            mSystemOverlayAttached = true;
+
+            // Keep controller/HID input alive after the Activity itself moves behind Home.
+            try {
+                org.libsdl.app.SDLActivity.nativeSetenv(
+                    "SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1");
+            } catch (Throwable ignored) {}
+
+            mLayout.postDelayed(() -> {
+                if (!isFinishing() && mSystemOverlayAttached) {
+                    moveTaskToBack(true);
+                }
+            }, 150L);
+        } catch (Throwable t) {
+            android.util.Log.e("DesktopMelee", "Could not attach TYPE_APPLICATION_OVERLAY", t);
+            mSystemOverlayAttached = false;
+            mOverlayRoot = null;
+            mOverlayWindowManager = null;
+            mDesktopOverlay = false;
+            try {
+                setContentView(mLayout);
+            } catch (Throwable ignored) {}
+            android.widget.Toast.makeText(this,
+                "System overlay failed; continuing in foreground mode.",
+                android.widget.Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void detachSystemOverlay() {
+        if (!mSystemOverlayAttached || mOverlayWindowManager == null || mOverlayRoot == null) {
+            return;
+        }
+        try {
+            mOverlayWindowManager.removeViewImmediate(mOverlayRoot);
+        } catch (Throwable ignored) {}
+        mSystemOverlayAttached = false;
+        mOverlayRoot = null;
+        mOverlayWindowManager = null;
+    }
 
     private void applyDesktopWindowMode() {
         android.view.Window window = getWindow();
@@ -168,6 +258,10 @@ public class MeleeActivity extends SDLActivity {
             ));
         }
 
+        if (mDesktopOverlay && mLayout != null) {
+            mLayout.post(this::attachSystemOverlay);
+        }
+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
             android.os.PowerManager pm = (android.os.PowerManager) getSystemService(android.content.Context.POWER_SERVICE);
             if (pm != null && pm.isSustainedPerformanceModeSupported()) {
@@ -220,14 +314,41 @@ public class MeleeActivity extends SDLActivity {
             } catch (Throwable ignored) {}
         }
         super.onStop();
+        if (mSystemOverlayAttached && !isFinishing()) {
+            try {
+                resumeNativeThread();
+                org.libsdl.app.SDLActivity.nativeFocusChanged(true);
+            } catch (Throwable t) {
+                android.util.Log.w("DesktopMelee", "Could not resume SDL behind overlay", t);
+            }
+            try {
+                if (mHIDDeviceManager != null) {
+                    mHIDDeviceManager.setFrozen(false);
+                }
+            } catch (Throwable ignored) {}
+        }
     }
 
     @Override
     protected void onDestroy() {
+        detachSystemOverlay();
         try {
             nativeDisconnect();
         } catch (Throwable ignored) {}
         super.onDestroy();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (mSystemOverlayAttached) {
+            try {
+                if (mHIDDeviceManager != null) {
+                    mHIDDeviceManager.setFrozen(false);
+                }
+                org.libsdl.app.SDLActivity.nativeFocusChanged(true);
+            } catch (Throwable ignored) {}
+        }
     }
 
     @Override
