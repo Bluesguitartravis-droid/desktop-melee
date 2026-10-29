@@ -13,7 +13,7 @@ jobs:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
       ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/26.3.11579264
-      MELEE_VERSION: 0.1.1-android-overlay
+      MELEE_VERSION: 0.1.2-android-updater
       MELEE_UNSIGNED_RELEASE: '1'
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -40,16 +40,16 @@ jobs:
           gh release download android-prototype-signing-v1 --repo "$GITHUB_REPOSITORY"             --pattern prototype-signing.pk8 --pattern prototype-signing.x509.pem --dir signing
           ZIPALIGN="$ANDROID_HOME/build-tools/34.0.0/zipalign"
           APKSIGNER="$ANDROID_HOME/build-tools/34.0.0/apksigner"
-          "$ZIPALIGN" -f -p 4 dist/Melee-Android-arm64.apk dist/signed/Desktop-Melee-Android-Full-0.1.1.apk
-          "$APKSIGNER" sign --key signing/prototype-signing.pk8 --cert signing/prototype-signing.x509.pem             dist/signed/Desktop-Melee-Android-Full-0.1.1.apk
-          "$APKSIGNER" verify --verbose --print-certs dist/signed/Desktop-Melee-Android-Full-0.1.1.apk             > dist/signed/APK-VERIFICATION.txt
-          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging dist/signed/Desktop-Melee-Android-Full-0.1.1.apk             >> dist/signed/APK-VERIFICATION.txt
+          "$ZIPALIGN" -f -p 4 dist/Melee-Android-arm64.apk dist/signed/Desktop-Melee-Android-Full-0.1.2.apk
+          "$APKSIGNER" sign --key signing/prototype-signing.pk8 --cert signing/prototype-signing.x509.pem             dist/signed/Desktop-Melee-Android-Full-0.1.2.apk
+          "$APKSIGNER" verify --verbose --print-certs dist/signed/Desktop-Melee-Android-Full-0.1.2.apk             > dist/signed/APK-VERIFICATION.txt
+          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging dist/signed/Desktop-Melee-Android-Full-0.1.2.apk             >> dist/signed/APK-VERIFICATION.txt
           grep -F "package: name='com.desktopmelee.android'" dist/signed/APK-VERIFICATION.txt
-          grep -F "versionCode='5'" dist/signed/APK-VERIFICATION.txt
-          sha256sum dist/signed/Desktop-Melee-Android-Full-0.1.1.apk > dist/signed/SHA256SUMS
+          grep -F "versionCode='6'" dist/signed/APK-VERIFICATION.txt
+          sha256sum dist/signed/Desktop-Melee-Android-Full-0.1.2.apk > dist/signed/SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
-          name: Desktop-Melee-Android-Full-0.1.1
+          name: Desktop-Melee-Android-Full-0.1.2
           compression-level: 0
           if-no-files-found: error
           path: dist/signed/
