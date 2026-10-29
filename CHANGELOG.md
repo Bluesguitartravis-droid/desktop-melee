@@ -1,5 +1,20 @@
 # Desktop Melee changes
 
+## 0.1.10 — 2026-10-29
+
+### Staggered all-monitor layouts
+
+- All-monitor mode no longer requires every display to share one horizontal band.
+- The lowest physical monitor supplies the native main floor while each higher
+  monitor contributes a wide one-way floor at its own taskbar/lower edge.
+- Side-by-side displays at the same height remain usable; additional equal-height
+  floors are lifted by one physical pixel internally so they can coexist with
+  Melee's native main-floor collision.
+- This supports mixed stacks such as a lower center screen beneath a row of
+  upper monitors and an offset auxiliary display.
+- The native main floor is limited to the actual lowest monitor width instead
+  of spanning invisible virtual-desktop gaps.
+
 ## 0.1.9 — 2026-10-29
 
 ### All-monitor arena
