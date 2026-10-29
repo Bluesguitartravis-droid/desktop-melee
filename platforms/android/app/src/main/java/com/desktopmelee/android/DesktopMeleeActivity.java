@@ -11,11 +11,14 @@ import android.widget.*;
 public final class DesktopMeleeActivity extends Activity {
     public static final String PREFS = "desktop_melee";
     public static final String EXTRA_ORIENTATION = "desktopOrientation";
+    public static final String EXTRA_OVERLAY = "desktopOverlay";
+    public static final String EXTRA_WATCH = "desktopWatch";
 
     private SharedPreferences prefs;
     private RadioGroup orientation;
     private SeekBar landscapeMargin, landscapeFloor, portraitMargin, portraitFloor;
     private Spinner players, mode, cpu, stocks;
+    private CheckBox homeOverlay;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -45,6 +48,13 @@ public final class DesktopMeleeActivity extends Activity {
         landscapeFloor = slider(root, "Landscape floor height", "landscapeFloor", 60, 96, 88);
         portraitMargin = slider(root, "Portrait horizontal margin", "portraitMargin", 0, 25, 6);
         portraitFloor = slider(root, "Portrait floor height", "portraitFloor", 55, 96, 82);
+
+        root.addView(text("Presentation", 18));
+        homeOverlay = new CheckBox(this);
+        homeOverlay.setText("Home-screen overlay (transparent)");
+        homeOverlay.setChecked(prefs.getBoolean("homeOverlay", true));
+        root.addView(homeOverlay);
+        root.addView(text("Turn this off to use normal foreground rendering if your Android/Vulkan compositor has trouble with transparency.", 13));
 
         root.addView(text("Match", 18));
         players = spinner(root, "Fighters", new String[]{"2","3","4"}, prefs.getInt("players",2)-2);
@@ -108,17 +118,37 @@ public final class DesktopMeleeActivity extends Activity {
             .putInt("portraitMargin",portraitMargin.getProgress())
             .putInt("portraitFloor",portraitFloor.getProgress()+55)
             .putInt("players",fighterCount).putInt("watch",watch)
-            .putInt("cpu",cpuLevel).putInt("stocks",stockCount).apply();
+            .putInt("cpu",cpuLevel).putInt("stocks",stockCount)
+            .putBoolean("homeOverlay", homeOverlay.isChecked()).apply();
 
         Intent i = new Intent(this, dev.melee.MeleeActivity.class);
         i.putExtra(EXTRA_ORIENTATION, orientationMode);
-        i.putExtra("args", new String[]{
+        i.putExtra(EXTRA_OVERLAY, homeOverlay.isChecked());
+        i.putExtra(EXTRA_WATCH, watch == 1);
+        java.util.ArrayList<String> args = new java.util.ArrayList<>();
+        args.add("--desktop");
+        if (homeOverlay.isChecked()) args.add("--android-transparent");
+        args.add("--desktop-players"); args.add(Integer.toString(fighterCount));
+        args.add("--desktop-watch"); args.add(Integer.toString(watch));
+        args.add("--desktop-cpu"); args.add(Integer.toString(cpuLevel));
+        args.add("--desktop-stocks"); args.add(Integer.toString(stockCount));
+        i.putExtra("args", args.toArray(new String[0]));
+        /*
+         * Finish the opaque setup activity after starting the translucent game
+         * activity. With the setup task gone, Android can composite the Home
+         * screen underneath the game surface.
+         */
+        i.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        startActivity(i);
+        finish();
+        overridePendingTransition(0, 0);
+        return;
+        /*
             "--desktop",
             "--desktop-players", Integer.toString(fighterCount),
             "--desktop-watch", Integer.toString(watch),
             "--desktop-cpu", Integer.toString(cpuLevel),
             "--desktop-stocks", Integer.toString(stockCount)
-        });
-        startActivity(i);
+        }); */
     }
 }
