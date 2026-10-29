@@ -184,7 +184,6 @@ public final class AndroidUpdater implements AutoCloseable {
         Intent install = new Intent(Intent.ACTION_INSTALL_PACKAGE);
         install.setData(uri);
         install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        install.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
         activity.startActivity(install);
         prefs.edit().putBoolean("pendingVerifiedInstall", false).apply();
     }
