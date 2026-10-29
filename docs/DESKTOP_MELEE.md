@@ -2,20 +2,20 @@
 
 An independent Windows implementation of the desktop-fighting idea: native
 Super Smash Bros. Melee, a transparent overlay, a stage aligned with the
-primary monitor's taskbar, open window tops as moving platforms, and optional
-platforms generated from the wallpaper image.
+selected monitor's taskbar or lower edge, open window tops as moving platforms,
+and optional platforms generated from that display's wallpaper image.
 Built on `999sian/melee-pc` at commit
 `0fb0af3304d3469308b5574369a6ec86f145632f`.
 
-**Status:** this package is a development preview. The user has confirmed that
-preview 4 runs and that open-window platforms work well. Version 0.1.6 adds
-automatic startup update checks and includes the preview 5 wallpaper-terrain
-and taskbar collision-ordering corrections.
-The Windows executables are cross-compiled. Automated checks exercise image
-geometry, native collision, CPU targeting and the knockout/collision order.
-This build has not been played on a Windows PC in the build environment;
-controller feel, real-match throws and live wallpaper changes still require
-testing on the user's computer with their own local disc image.
+**Status:** this package remains experimental. Windows 0.1.8 adds two-, three-
+and four-fighter free-for-all matches plus explicit arena-display selection.
+Each active fighter can be CPU-controlled or assigned to controller port 1-4.
+The earlier startup updater, wallpaper terrain, moving-window platforms and
+taskbar collision-ordering corrections remain included. The Windows executables
+are cross-compiled. Automated checks cover monitor geometry, 2-4 fighter setup,
+CPU targeting, spawn/respawn placement, native collision and knockout ordering.
+Live multi-monitor behavior, controller enumeration and sustained four-player
+performance still require testing on Windows with the user's own local disc.
 
 ## Windows 0.1.8: four fighters and display selection\n\nUse **Fighters** to choose 2, 3 or 4 active slots. Presets provide **Player 1\nvs. CPUs**, **Watch CPUs**, **Local players**, or a **Custom player / CPU mix**.\nEach active slot selects its own character, costume and CPU/controller port.\nHuman fighters must use different controller ports. These are free-for-all stock\nmatches; team battles are not part of 0.1.8.\n\nUse **Display** to keep the arena on the primary screen automatically or select\na different connected monitor. **Refresh** rescans displays. The selected screen\nprovides the arena bounds, floor, window-platform coordinates and wallpaper\nsource. A disconnected saved display is reported instead of silently falling\nback to another screen. Displays with no usable bottom taskbar get a lower-edge\nfallback floor. Only one monitor hosts the arena at a time.\n\n## GitHub releases and startup update checks
 
@@ -194,8 +194,8 @@ floor. The stage continues to use screen-edge KO boundaries. CPU initialization
 applies the adjustment to new fighters, including respawns. Ordinary stages
 use their existing CPU settings.
 
-The CPU correction is included in version 0.1.6. **Watch two CPUs** still uses the
-ordinary VS CPU behavior and the two fighters chosen in the launcher.
+The CPU correction remains included in 0.1.8. **Watch CPUs** uses ordinary VS
+CPU behavior for every active fighter selected in the launcher.
 
 ## Preview 2: startup crash correction
 
@@ -225,21 +225,23 @@ Reddit user Minute-Tone9933. It does not contain that creator's unreleased code.
    RVZ, GCZ, and WIA. The game checks the image when it starts. No game image,
    original game executable, character assets, or extracted disc files are
    supplied in this package.
-4. Choose the two fighters, costumes, stock count and mode:
-   **Play against a CPU**, **Watch two CPUs**, or **Two local players**.
+4. Choose the arena **Display**, then choose **2, 3 or 4 fighters**. Configure
+   each active fighter's character, costume and CPU/controller port, or use a
+   preset such as **Player 1 vs. CPUs** or **Watch CPUs**.
 5. Choose window platforms and optional wallpaper terrain, connect a controller
    for each human player, and choose **Start desktop match**.
    The base game's launcher may appear while the disc is checked and shaders
    prepare. The desktop overlay starts after the match loads.
 
-For the first test, use the primary monitor and a visible taskbar along the
-bottom. The floor extends across the taskbar's reported width. With the normal
-full-width Windows taskbar, the stage is wider than ordinary Final Destination.
+For the first test, use a monitor with a visible bottom taskbar. The floor
+extends across that display's reported taskbar width. Secondary monitors are
+supported; if a selected screen has no usable bottom taskbar, Desktop Melee
+creates a fallback floor near its lower edge.
 
 The code keeps normal Melee fighter physics and combat. It changes the camera,
 collision geometry, blast zones, spawn locations, stage visibility, and HUD
-placement. The two selected fighters use standard local VS CPU/controller logic.
-Completed rounds start another match with the same selection.
+placement. Two to four active fighters use standard local VS CPU/controller
+logic. Completed rounds start another match with the same selection.
 
 ## Controls
 
@@ -276,14 +278,16 @@ different colors when possible.
 - A GPU that works with the base port's **Direct3D 12 or Vulkan** renderer.
   Direct3D 11 exists upstream but is not a verified fallback for this preview.
 - Your own **USA 1.02** disc image. This package does not provide or download it.
-- **One primary monitor** is used. Display and taskbar geometry are sampled
-  when a match starts. Keep its resolution, DPI and taskbar layout unchanged
-  during the session. App window positions update while the match runs.
+- **One selected monitor** is used per match. The primary display can be chosen
+  automatically, or another connected display can be selected explicitly.
+  Display and taskbar geometry are sampled when a match starts. Keep resolution,
+  DPI and taskbar layout unchanged during the session; app-window positions
+  continue updating while the match runs.
 - A bottom taskbar is the supported layout. Auto-hide and side/top taskbars
   use a fallback lower-edge floor and are not validated to match a visible bar.
-- This preview offers **two local fighters**, including CPU-versus-CPU viewing.
-  It is for local desktop matches; this custom arena is not a supported netplay
-  or competitive setup.
+- Windows 0.1.8 offers **2-4 local fighters**. Each active slot can be CPU or
+  a unique controller port 1-4. It is for local desktop matches; this custom
+  arena is not a supported netplay or competitive setup.
 - Window tops are one-way platforms; their sides and bottoms are not walls
   or ceilings. Up to **32 exposed top-edge spans** are supported. Hidden,
   minimized, cloaked and utility windows are skipped. Tiny exposed spans are
@@ -323,9 +327,10 @@ check that it is the USA 1.02 revision.
 controller port and bindings. Support for individual adapters follows the
 upstream port; this build has not been tested with a physical adapter.
 
-**Misaligned floor:** stop the game, restore a visible bottom taskbar on the
-primary display, then restart. Monitor rearrangement while active requests an
-exit rather than moving collision under the fighters.
+**Misaligned floor:** stop the game, confirm the intended screen in **Display**,
+then restart. A visible bottom taskbar is used when available; otherwise the
+selected monitor receives a lower-edge fallback floor. Monitor rearrangement
+while active requests an exit rather than moving collision under the fighters.
 
 **A window is not a platform:** check the launcher's window-platform checkbox,
 then use a normal, non-minimized app window on the selected display. Its top
@@ -334,7 +339,7 @@ lower if the fighters cannot jump high enough. A window on another virtual
 desktop, a tool palette, a menu or a tiny exposed strip is skipped.
 
 **Wallpaper surfaces are missing or unexpected:** use a static image with a
-clear terrain outline or broad contrasting ledges, and try **Fit** or **Fill** on the primary
+clear terrain outline or broad contrasting ledges, and try **Fit** or **Fill** on the selected
 display. Move covering app windows aside. Check `desktop-melee.log` for the
 detected ledge count. A flat image or a busy photo may correctly produce no
 usable terrain. Uncheck wallpaper generation to keep playing on the taskbar
@@ -342,7 +347,7 @@ and window tops.
 
 **Slow or choppy display:** this first version prioritizes working Windows
 transparency. GPU readback and desktop composition add overhead. Use a 1080p
-primary display for initial evaluation and include the GPU/display details
+display for initial evaluation and include the GPU/display details
 when reporting results.
 
 The launcher remembers its selections in
