@@ -17,7 +17,22 @@ CPU targeting, spawn/respawn placement, native collision and knockout ordering.
 Live multi-monitor behavior, controller enumeration and sustained four-player
 performance still require testing on Windows with the user's own local disc.
 
-## Windows 0.1.8: four fighters and display selection\n\nUse **Fighters** to choose 2, 3 or 4 active slots. Presets provide **Player 1\nvs. CPUs**, **Watch CPUs**, **Local players**, or a **Custom player / CPU mix**.\nEach active slot selects its own character, costume and CPU/controller port.\nHuman fighters must use different controller ports. These are free-for-all stock\nmatches; team battles are not part of 0.1.8.\n\nUse **Display** to keep the arena on the primary screen automatically or select\na different connected monitor. **Refresh** rescans displays. The selected screen\nprovides the arena bounds, floor, window-platform coordinates and wallpaper\nsource. A disconnected saved display is reported instead of silently falling\nback to another screen. Displays with no usable bottom taskbar get a lower-edge\nfallback floor. Only one monitor hosts the arena at a time.\n\n## GitHub releases and startup update checks
+## Windows 0.1.8: four fighters and display selection
+
+Use **Fighters** to choose 2, 3 or 4 active slots. Presets provide **Player 1
+vs. CPUs**, **Watch CPUs**, **Local players**, or a **Custom player / CPU mix**.
+Each active slot selects its own character, costume and CPU/controller port.
+Human fighters must use different controller ports. These are free-for-all stock
+matches; team battles are not part of 0.1.8.
+
+Use **Display** to keep the arena on the primary screen automatically or select
+a different connected monitor. **Refresh** rescans displays. The selected screen
+provides the arena bounds, floor, window-platform coordinates and wallpaper
+source. A disconnected saved display is reported instead of silently falling
+back to another screen. Displays with no usable bottom taskbar get a lower-edge
+fallback floor. Only one monitor hosts the arena at a time.
+
+## GitHub releases and startup update checks
 
 Project: <https://github.com/Bluesguitartravis-droid/desktop-melee>
 
