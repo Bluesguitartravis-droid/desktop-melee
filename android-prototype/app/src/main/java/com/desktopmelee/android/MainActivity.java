@@ -21,6 +21,8 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 public final class MainActivity extends Activity {
+    static { System.loadLibrary("desktopmelee_native"); }
+    private static native String nativeBridgeStatus();
     private TextView status;
     private boolean launching;
     private int dp(int n) { return Math.round(n * getResources().getDisplayMetrics().density); }
@@ -37,10 +39,10 @@ public final class MainActivity extends Activity {
             return insets;
         });
         TextView title = new TextView(this);
-        title.setText("Desktop Melee / Android overlay test 0.0.1");
+        title.setText("Desktop Melee / Android prototype 0.0.2");
         title.setTextSize(22); root.addView(title);
         TextView details = new TextView(this);
-        details.setText("Two colored placeholders test transparency and gamepad input. This is NOT Melee gameplay; no disc is needed.\n\nWatch: home-screen touch-through test.\nPlay: the overlay takes input focus; icons underneath are not clickable. Stick / D-pad moves yellow, A jumps, X flashes. Back or B returns to Watch.\n\nUse STOP, the notification, or this app to end the overlay. It also stops when the screen turns off. No root, accessibility service, Internet or storage access.");
+        details.setText("Four placeholder fighters now test the 4-player layout and controller path. This is still NOT Melee gameplay; no disc is needed.\n\nWatch: four CPU placeholders animate while the home screen stays usable.\nPlay: P1 is controlled by the Odin; the other three remain CPU placeholders. Stick / D-pad moves P1, A jumps, X flashes. Back or B returns to Watch.\n\nNative bridge: " + nativeBridgeStatus() + "\n\nThis build also loads a native C++ library inside the APK. That is the integration path we will use for the actual Melee engine port.");
         details.setPadding(0, dp(16), 0, dp(16)); root.addView(details);
         status = new TextView(this); root.addView(status);
         add(root, "1. Allow display over other apps", v -> open(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()))));
