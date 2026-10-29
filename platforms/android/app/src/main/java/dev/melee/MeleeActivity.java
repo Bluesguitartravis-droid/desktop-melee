@@ -136,7 +136,8 @@ public class MeleeActivity extends SDLActivity {
 
             int flags = android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN |
                 android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS |
-                android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED;
+                android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED |
+                android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL;
             if (mDesktopWatch) {
                 flags |= android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
                     android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
@@ -150,6 +151,22 @@ public class MeleeActivity extends SDLActivity {
                     flags,
                     android.graphics.PixelFormat.TRANSLUCENT);
             lp.gravity = android.view.Gravity.TOP | android.view.Gravity.START;
+            lp.softInputMode = android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING;
+            if (mDesktopWatch) {
+                float safeAlpha = 0.70f;
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    android.hardware.input.InputManager input =
+                        (android.hardware.input.InputManager) getSystemService(
+                            android.content.Context.INPUT_SERVICE);
+                    if (input != null) {
+                        safeAlpha = Math.min(safeAlpha,
+                            input.getMaximumObscuringOpacityForTouch() * 0.90f);
+                    }
+                }
+                lp.alpha = safeAlpha;
+            } else {
+                lp.alpha = 1.0f;
+            }
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
                 lp.layoutInDisplayCutoutMode =
                     android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
@@ -157,6 +174,15 @@ public class MeleeActivity extends SDLActivity {
             mOverlayWindowManager.addView(mLayout, lp);
             mOverlayRoot = mLayout;
             mSystemOverlayAttached = true;
+            if (!mDesktopWatch) {
+                mLayout.setFocusableInTouchMode(true);
+                mLayout.requestFocus();
+                mLayout.postDelayed(() -> {
+                    if (mSystemOverlayAttached && mOverlayRoot != null) {
+                        mOverlayRoot.requestFocus();
+                    }
+                }, 350L);
+            }
 
             // Keep controller/HID input alive after the Activity itself moves behind Home.
             try {
