@@ -100,6 +100,34 @@ public class MeleeActivity extends SDLActivity {
 
     private TouchOverlayView mTouchOverlay;
     private boolean mFullscreen = true;
+    private boolean mDesktopOverlay;
+    private boolean mDesktopWatch;
+
+    public boolean isDesktopOverlayEnabled() { return mDesktopOverlay; }
+    public boolean isDesktopWatchMode() { return mDesktopWatch; }
+
+    private void applyDesktopWindowMode() {
+        android.view.Window window = getWindow();
+        if (window == null) return;
+        if (mDesktopOverlay) {
+            window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            window.setDimAmount(0.0f);
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
+            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+            if (mDesktopWatch) {
+                window.addFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE |
+                    android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
+            } else {
+                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE |
+                    android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
+            }
+        } else {
+            window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.BLACK));
+            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE |
+                android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
+                android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
+        }
+    }
 
     public void setFullscreen(final boolean fullscreen) {
         runOnUiThread(() -> {
@@ -111,6 +139,10 @@ public class MeleeActivity extends SDLActivity {
     @Override
     protected void onCreate(android.os.Bundle savedInstanceState) {
         android.content.Intent intent = getIntent();
+        mDesktopOverlay = intent != null && intent.getBooleanExtra(
+            com.desktopmelee.android.DesktopMeleeActivity.EXTRA_OVERLAY, false);
+        mDesktopWatch = intent != null && intent.getBooleanExtra(
+            com.desktopmelee.android.DesktopMeleeActivity.EXTRA_WATCH, false);
         int orientationMode = intent != null ? intent.getIntExtra(
             com.desktopmelee.android.DesktopMeleeActivity.EXTRA_ORIENTATION, 0) : 0;
         if (orientationMode == 1) {
@@ -121,6 +153,7 @@ public class MeleeActivity extends SDLActivity {
             setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR);
         }
         super.onCreate(savedInstanceState);
+        applyDesktopWindowMode();
         if (mBrokenLibraries) {
             return;
         }
@@ -200,6 +233,7 @@ public class MeleeActivity extends SDLActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        applyDesktopWindowMode();
         applyImmersiveMode();
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
             android.view.WindowManager.LayoutParams lp = getWindow().getAttributes();
