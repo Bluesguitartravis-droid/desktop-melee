@@ -57,7 +57,8 @@ int main() {
         std::array<int32_t,5> floors{{-48,-48,-48,-308,1040}};
         assert(make_span(staggered,floors,g));
         assert(g.screen_x==-1920 && g.screen_y==-1080);
-        assert(g.width==5120 && g.height==2160 && g.platform_top==2120);\n        assert(g.platform_left==2560 && g.platform_right==3840);
+        assert(g.width==5120 && g.height==2160 && g.platform_top==2120);
+        assert(g.platform_left==2560 && g.platform_right==3840);
     }
     puts("monitor geometry: single, side-by-side and staggered all-monitor spans passed");
 }
