@@ -381,10 +381,10 @@ static void check_hud_camera_scale(void)
     hud.projection_param.ortho.left = -32;
     hud.projection_param.ortho.right = 32;
     CHECK(pc_desktop_apply_hud_camera(&hud));
-    near_value(hud.projection_param.ortho.top, 48.0f);
-    near_value(hud.projection_param.ortho.bottom, -48.0f);
-    near_value(hud.projection_param.ortho.left, -64.0f);
-    near_value(hud.projection_param.ortho.right, 64.0f);
+    near_value(hud.projection_param.ortho.top, 72.0f);
+    near_value(hud.projection_param.ortho.bottom, -72.0f);
+    near_value(hud.projection_param.ortho.left, -96.0f);
+    near_value(hud.projection_param.ortho.right, 96.0f);
 
     hud.projection_type = PROJ_PERSPECTIVE;
     hud.projection_param.perspective.fov = 30.0f;
