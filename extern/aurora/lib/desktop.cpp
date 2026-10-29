@@ -149,7 +149,7 @@ public:
 };
 
 bool query_geometry(AuroraDesktopGeometry& out) {
-  return monitors::geometry(monitors::requested_id(), out);
+  return monitors::requested_geometry(out);
 }
 
 #elif defined(AURORA_DESKTOP_X11)
