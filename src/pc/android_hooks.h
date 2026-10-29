@@ -6,6 +6,7 @@
 #define PC_ANDROID_HOOKS_H
 
 #include <stdbool.h>
+#include <aurora/desktop.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,6 +44,9 @@ void pc_android_set_launcher_active(bool active);
 void pc_android_export_logs(void);
 /* Apply the saved fullscreen preference to Android system bars. */
 bool pc_android_set_fullscreen(bool fullscreen);
+/* Current Android combat area in physical pixels. Geometry is sampled when a
+ * Desktop Melee match starts, so rotation between matches is safe. */
+bool pc_android_get_desktop_geometry(AuroraDesktopGeometry* out);
 
 #ifdef __cplusplus
 }
