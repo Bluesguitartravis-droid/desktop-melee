@@ -56,6 +56,11 @@ inline std::vector<Monitor> enumerate() {
     return list;
 }
 inline bool same_id(const std::wstring& a,const std::wstring& b) { return _wcsicmp(a.c_str(),b.c_str())==0; }
+inline bool all_requested() {
+    wchar_t value[8]{};
+    return GetEnvironmentVariableW(L"MELEE_DESKTOP_ALL_MONITORS",value,8)>0 &&
+           std::wcscmp(value,L"1")==0;
+}
 inline std::wstring requested_id() {
     wchar_t value[1024]{};
     const DWORD n=GetEnvironmentVariableW(L"MELEE_DESKTOP_MONITOR",value,1024);
@@ -90,6 +95,28 @@ inline bool geometry(const std::wstring& id,AuroraDesktopGeometry& out) {
     const auto bar=rect(query.rect);
     return monitor_geometry::make(rect(chosen->info.rcMonitor),rect(chosen->info.rcWork),
                                   query.found?&bar:nullptr,out);
+}
+inline bool geometry_all(AuroraDesktopGeometry& out) {
+    PhysicalPixels scope;
+    const auto list=enumerate();
+    if (list.empty()) return false;
+    std::vector<monitor_geometry::Rect> rects;
+    std::vector<int32_t> floors;
+    rects.reserve(list.size()); floors.reserve(list.size());
+    for (const auto& m:list) {
+        TaskbarQuery query; query.monitor=m.handle;
+        EnumWindows(taskbar_window,reinterpret_cast<LPARAM>(&query));
+        const auto bar=rect(query.rect);
+        AuroraDesktopGeometry local{};
+        if (!monitor_geometry::make(rect(m.info.rcMonitor),rect(m.info.rcWork),
+                                    query.found?&bar:nullptr,local)) return false;
+        rects.push_back(rect(m.info.rcMonitor));
+        floors.push_back(local.screen_y + local.platform_top);
+    }
+    return monitor_geometry::make_span(rects,floors,out);
+}
+inline bool requested_geometry(AuroraDesktopGeometry& out) {
+    return all_requested() ? geometry_all(out) : geometry(requested_id(),out);
 }
 } // namespace aurora::desktop::monitors
 #endif
