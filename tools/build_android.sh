@@ -74,15 +74,19 @@ if [[ -f "${BUILD_DIR}/_deps/png-build/libpng16.so" ]]; then
 fi
 
 echo "=== Preparing release signing key ==="
-KEYSTORE="${MELEE_KEYSTORE_FILE:-${ANDROID_DIR}/melee-release.keystore}"
-if [[ -n "${MELEE_KEYSTORE_BASE64:-}" ]]; then
+if [[ "${MELEE_UNSIGNED_RELEASE:-0}" == 1 ]]; then
+    KEYSTORE=""
+else
+    KEYSTORE="${MELEE_KEYSTORE_FILE:-${ANDROID_DIR}/melee-release.keystore}"
+fi
+if [[ "${MELEE_UNSIGNED_RELEASE:-0}" != 1 && -n "${MELEE_KEYSTORE_BASE64:-}" ]]; then
     # CI path: the keystore lives in repository secrets, never in the tree.
     base64 -d <<< "${MELEE_KEYSTORE_BASE64}" > "${KEYSTORE}"
-elif [[ -z "${MELEE_KEYSTORE_FILE:-}" && -f "${ANDROID_DIR}/release-signing.env" ]]; then
+elif [[ "${MELEE_UNSIGNED_RELEASE:-0}" != 1 && -z "${MELEE_KEYSTORE_FILE:-}" && -f "${ANDROID_DIR}/release-signing.env" ]]; then
     # Local path: passwords sit next to the (gitignored) keystore.
     set -a; source "${ANDROID_DIR}/release-signing.env"; set +a
 fi
-if [[ ! -f "${KEYSTORE}" && "${MELEE_THROWAWAY_KEY:-}" == 1 ]]; then
+if [[ "${MELEE_UNSIGNED_RELEASE:-0}" != 1 && ! -f "${KEYSTORE}" && "${MELEE_THROWAWAY_KEY:-}" == 1 ]]; then
     # Fork PRs get no repository secrets. Sign with a key made for this build
     # so the APK still builds; it lives in the build tree, never in the place
     # of the release keystore, and cannot update an installed release.
@@ -96,12 +100,17 @@ if [[ ! -f "${KEYSTORE}" && "${MELEE_THROWAWAY_KEY:-}" == 1 ]]; then
     export MELEE_KEYSTORE_FILE="$(realpath "${KEYSTORE}")"
     echo "warning: no release key; signing with a throwaway key" >&2
 fi
-if [[ ! -f "${KEYSTORE}" ]]; then
-    echo "error: no signing key; set MELEE_KEYSTORE_BASE64 or create ${KEYSTORE}" >&2
-    exit 1
+if [[ "${MELEE_UNSIGNED_RELEASE:-0}" != 1 ]]; then
+    if [[ ! -f "${KEYSTORE}" ]]; then
+        echo "error: no signing key; set MELEE_KEYSTORE_BASE64 or create ${KEYSTORE}" >&2
+        exit 1
+    fi
+    export MELEE_KEYSTORE_FILE="$(realpath "${KEYSTORE}")"
+    export MELEE_KEYSTORE_PASSWORD MELEE_KEY_ALIAS MELEE_KEY_PASSWORD
+else
+    unset MELEE_KEYSTORE_FILE MELEE_KEYSTORE_PASSWORD MELEE_KEY_ALIAS MELEE_KEY_PASSWORD
+    echo "warning: building unsigned release for external apksigner step" >&2
 fi
-export MELEE_KEYSTORE_FILE="$(realpath "${KEYSTORE}")"
-export MELEE_KEYSTORE_PASSWORD MELEE_KEY_ALIAS MELEE_KEY_PASSWORD
 
 echo "=== Building Melee Android APK ==="
 cd "${ANDROID_DIR}"
@@ -113,11 +122,15 @@ cd "${ANDROID_DIR}"
 
 APK="${ROOT_DIR}/dist/Melee-Android-arm64.apk"
 mkdir -p "${ROOT_DIR}/dist"
-cp "${ANDROID_DIR}/app/build/outputs/apk/release/app-release.apk" "${APK}"
+if [[ "${MELEE_UNSIGNED_RELEASE:-0}" == 1 ]]; then
+    cp "${ANDROID_DIR}/app/build/outputs/apk/release/app-release-unsigned.apk" "${APK}"
+else
+    cp "${ANDROID_DIR}/app/build/outputs/apk/release/app-release.apk" "${APK}"
+fi
 
 # A release APK that silently came out unsigned would fail to install.
 APKSIGNER="$(find "${ANDROID_HOME}/build-tools" -name apksigner -print -quit 2>/dev/null || true)"
-if [[ -n "${APKSIGNER}" ]]; then
+if [[ -n "${APKSIGNER}" && "${MELEE_UNSIGNED_RELEASE:-0}" != 1 ]]; then
     "${APKSIGNER}" verify --print-certs "${APK}" | head -4
 fi
 
