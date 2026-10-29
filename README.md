@@ -11,11 +11,11 @@ experimental wallpaper terrain.
 |---|---:|---|---|
 | **Windows x64** | **0.1.10** | **[Windows installer](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/desktop-v0.1.10/Desktop-Melee-Setup-x64.exe)** | Desktop overlay, 2-4 fighters, selectable display, all-monitor span |
 | **Linux x86_64** | **0.1.7 Linux preview 1** | **[Linux AppImage](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/desktop-v0.1.7-linux.1/Desktop-Melee-Linux-x86_64.AppImage)** | Native Linux preview; desktop overlay requires composited X11 |
-| **Android** | **0.0.3 prototype** | **[Android APK](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/android-prototype-v0.0.3-build.17/Desktop-Melee-Android-Prototype-0.0.3.apk)** | Four-slot overlay/controller prototype with native C++ bridge |
+| **Android ARM64** | **0.1.0 full preview 1** | **[Android APK](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/android-full-v0.1.0-preview.1/Desktop-Melee-Android-Full-0.1.0.apk)** | Full native Melee engine + Desktop Melee combat-area setup |
 
 **[View all releases, portable packages, source archives and checksums](https://github.com/Bluesguitartravis-droid/desktop-melee/releases)**
 
-> **Android update note:** 0.0.3 establishes the stable prototype signing certificate. If you installed Android 0.0.1 or 0.0.2, uninstall that older prototype once before installing 0.0.3. Future prototype APKs are intended to install over 0.0.3 normally.
+> **Android update note:** 0.0.3 established the stable signing certificate. Android Full 0.1.0 uses the same package/signature with versionCode 4, so it is intended to install directly over 0.0.3. If you still have 0.0.1 or 0.0.2, uninstall that old build once first.
 
 ## Download and play on Windows
 
@@ -79,21 +79,26 @@ hardware or tested through a real match there.
 
 ## Android prototype
 
-**[Download the Android APK](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/android-prototype-v0.0.3-build.17/Desktop-Melee-Android-Prototype-0.0.3.apk)**
+**[Download Android Full 0.1.0 preview 1](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/android-full-v0.1.0-preview.1/Desktop-Melee-Android-Full-0.1.0.apk)**
 
-[Android 0.0.3 release, verification files and checksums](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/tag/android-prototype-v0.0.3-build.17)
-· [Android prototype source and instructions](android-prototype/README.md)
+[Android Full 0.1.0 release and verification files](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/tag/android-full-v0.1.0-preview.1)
+· [Previous overlay prototype 0.0.3](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/tag/android-prototype-v0.0.3-build.17)
 
-The Android build is currently an **overlay/controller prototype, not playable
-Melee yet**. It displays four placeholder fighter slots over the Android home
-screen, supports controller input for P1 with CPU placeholders, and loads a
-native C++/JNI bridge inside the APK. That native bridge is the integration
-path for the future Melee engine port.
+Android Full 0.1.0 is built from the repository's **real native Android Melee
+engine**, not placeholder fighters. It adds a pre-game Desktop Melee setup
+screen with Auto/Landscape/Portrait orientation, separate landscape/portrait
+combat-area margins and floor height, 2-4 fighters, CPU/watch choices, CPU
+level and stocks. It then launches the existing native disc picker, controller/
+touch input, Vulkan renderer and game settings.
 
-Android 0.0.3 is the stable-signing baseline. The earlier 0.0.1 and 0.0.2
-prototype APKs used temporary GitHub runner signing keys, so Android cannot
-install 0.0.3 directly over those builds. Uninstall an older prototype once,
-install 0.0.3, and future prototype builds are intended to update in place.
+This first full-engine preview still runs in the ordinary foreground Android
+activity. Transparent native gameplay over the Android Home screen is the next
+presentation milestone. The earlier 0.0.3 overlay prototype remains available
+for comparison.
+
+Android 0.0.3 established the stable signing certificate. Full 0.1.0 uses the
+same application ID/signature with versionCode 4 and should install over 0.0.3.
+If you still have 0.0.1 or 0.0.2, uninstall that older prototype once first.
 
 ## Startup updates
 
