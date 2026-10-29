@@ -272,6 +272,7 @@ void ifAll_802F390C(void)
     loadScene(&scene);
     ifAll_802F370C(scene);
     ifAll_804A0FD8.gobj = createCamera(DP(HSD_CObjDesc, DP(struct SceneCameraDesc, scene->cameras)[0].desc));
+    pc_desktop_apply_hud_camera(GET_COBJ(ifAll_804A0FD8.gobj));
     createLight(scene);
 
     ifStatus_802F7134();
