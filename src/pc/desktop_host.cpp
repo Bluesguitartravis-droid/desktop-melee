@@ -106,7 +106,7 @@ extern "C" bool pc_desktop_host_init(SDL_Window* window) {
     AuroraDesktopGeometry geometry{};
     if (!aurora_desktop_get_geometry(&geometry) || !geometry.width || !geometry.height) {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Desktop Melee",
-            "Could not determine the primary display and taskbar. "
+            "Could not determine the selected display and taskbar. "
             "This preview needs a normal Windows desktop with a bottom taskbar.", window);
         return false;
     }
@@ -128,7 +128,7 @@ extern "C" bool pc_desktop_host_init(SDL_Window* window) {
         pc_log_line("desktop: Ctrl+Shift+F10 is in use; use the tray icon for settings");
     add_tray_icon();
     initialized = true;
-    pc_log_line("desktop: primary monitor %ux%u at %d,%d, platform (%d,%d)-(%d,%d)",
+    pc_log_line("desktop: selected monitor %ux%u at %d,%d, platform (%d,%d)-(%d,%d)",
         geometry.width, geometry.height, geometry.screen_x, geometry.screen_y,
         geometry.platform_left, geometry.platform_top,
         geometry.platform_right, geometry.platform_bottom);

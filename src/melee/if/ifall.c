@@ -230,8 +230,8 @@ static void ifAll_802F370C(SceneDesc* scene)
                 pc_widescreen_hud_player_x(i, 4, ifAll_804A0FD8.x18[i].x);
         }
     }
-    for (i = 0; i < 2; ++i) {
-        pc_desktop_hud_position(i, 2, &ifAll_804A0FD8.x18[i].x,
+    for (i = 0; i < pc_desktop_player_count(); ++i) {
+        pc_desktop_hud_position(i, pc_desktop_player_count(), &ifAll_804A0FD8.x18[i].x,
                                 &ifAll_804A0FD8.x18[i].y);
     }
 }

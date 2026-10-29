@@ -22,6 +22,7 @@
 #endif
 #include <windows.h>
 #include <shellapi.h>
+#include <aurora/desktop_monitor_windows.hpp>
 #endif
 
 #if defined(AURORA_ENABLE_GX) && (defined(_WIN32) || defined(AURORA_DESKTOP_X11))
@@ -148,34 +149,7 @@ public:
 };
 
 bool query_geometry(AuroraDesktopGeometry& out) {
-  PhysicalDpiScope dpi;
-  const POINT origin{};
-  const HMONITOR monitor = MonitorFromPoint(origin, MONITOR_DEFAULTTOPRIMARY);
-  MONITORINFO info{};
-  info.cbSize = sizeof(info);
-  if (!monitor || !GetMonitorInfoW(monitor, &info)) return false;
-  const int width = info.rcMonitor.right - info.rcMonitor.left;
-  const int height = info.rcMonitor.bottom - info.rcMonitor.top;
-  if (width <= 0 || height <= 0 || width > MaxDimension || height > MaxDimension) return false;
-  out = {info.rcMonitor.left, info.rcMonitor.top,
-         static_cast<uint32_t>(width), static_cast<uint32_t>(height),
-         0, info.rcWork.bottom - info.rcMonitor.top, width, height};
-  APPBARDATA data{};
-  data.cbSize = sizeof(data);
-  if (SHAppBarMessage(ABM_GETTASKBARPOS, &data) && data.uEdge == ABE_BOTTOM) {
-    out.platform_left = std::clamp(static_cast<int>(data.rc.left - info.rcMonitor.left), 0, width);
-    out.platform_right = std::clamp(static_cast<int>(data.rc.right - info.rcMonitor.left), 0, width);
-    out.platform_top = std::clamp(static_cast<int>(data.rc.top - info.rcMonitor.top), 0, height);
-    out.platform_bottom = std::clamp(static_cast<int>(data.rc.bottom - info.rcMonitor.top), 0, height);
-  }
-  /* An auto-hidden taskbar still needs a useful visible floor location.
-   * For side/top taskbars use the lower working-area edge. */
-  if (out.platform_top >= height - 2) out.platform_top = std::max(0, height - 48);
-  if (out.platform_right <= out.platform_left) {
-    out.platform_left = 0;
-    out.platform_right = width;
-  }
-  return true;
+  return monitors::geometry(monitors::requested_id(), out);
 }
 
 #elif defined(AURORA_DESKTOP_X11)
@@ -274,7 +248,7 @@ bool set_enabled(bool enabled) {
   if (enabled) {
     AuroraDesktopGeometry current{};
     if (!get_geometry(current) || !query_geometry(current)) {
-      Log.error("Unable to measure the primary monitor; retaining normal game window");
+      Log.error("Unable to measure the selected monitor; retaining normal game window");
       g_failed = true;
       return false;
     }

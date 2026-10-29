@@ -75,7 +75,7 @@ const char* status_message(Status status) {
   case Status::Ready: return "ready";
   case Status::ComUnavailable: return "Windows image services are unavailable";
   case Status::DesktopUnavailable: return "Windows wallpaper settings are unavailable";
-  case Status::PrimaryUnavailable: return "primary-monitor wallpaper geometry changed; relaunch required";
+  case Status::PrimaryUnavailable: return "selected-monitor wallpaper geometry changed; relaunch required";
   case Status::NoImage: return "no static wallpaper image is selected";
   case Status::NonlocalImage: return "wallpaper is not an available local file";
   case Status::ImageUnavailable: return "selected wallpaper file is unavailable";

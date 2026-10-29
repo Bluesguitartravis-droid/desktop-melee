@@ -490,3 +490,10 @@ included `licenses` directory and upstream license notes for the components.
 Super Smash Bros. Melee and its characters belong to their respective owners.
 This project is independent of Nintendo, the Slippi team, and the author of the
 macOS Desktop Melee preview.
+
+
+## Windows 0.1.8 update
+
+The Windows launcher now supports 2-4 fighters and selecting a non-primary monitor.
+See [four-fighter and display instructions](DESKTOP_WINDOWS_018.md). Older preview
+limits described above are superseded by that section.

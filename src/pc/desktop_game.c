@@ -37,6 +37,7 @@ static AuroraDesktopGeometry geometry;
 static float view_left, view_right, view_top, view_bottom;
 static float floor_left, floor_right;
 static unsigned simulation_ticks;
+static int desktop_roster_size = 2;
 
 /* These match mpLibLoad's existing runtime capacities. Reserve the bounded
  * pool in a private descriptor copy, so original archive data and line IDs
@@ -115,66 +116,66 @@ bool pc_desktop_match_active(void)
     return match_active;
 }
 
+int pc_desktop_player_count(void)
+{
+    return desktop_roster_size;
+}
+
 void pc_desktop_configure_match(StartMeleeData* start)
 {
-    int i, cpu, watch, stocks;
-    if (!pc_desktop_requested()) {
-        return;
-    }
+    static const char* character_keys[] = { "MELEE_DESKTOP_P1", "MELEE_DESKTOP_P2", "MELEE_DESKTOP_P3", "MELEE_DESKTOP_P4" };
+    static const char* costume_keys[] = { "MELEE_DESKTOP_COSTUME1", "MELEE_DESKTOP_COSTUME2", "MELEE_DESKTOP_COSTUME3", "MELEE_DESKTOP_COSTUME4" };
+    static const char* control_keys[] = { "MELEE_DESKTOP_CONTROL1", "MELEE_DESKTOP_CONTROL2", "MELEE_DESKTOP_CONTROL3", "MELEE_DESKTOP_CONTROL4" };
+    static const int defaults[] = { CKind_Fox, CKind_Falco, CKind_Mario, CKind_Mars };
+    int i, cpu, watch, stocks, used_ports = 0;
+    if (!pc_desktop_requested()) return;
     cpu = option_int("MELEE_DESKTOP_CPU", 5, 0, 9);
     watch = option_int("MELEE_DESKTOP_WATCH", 0, 0, 1);
     stocks = option_int("MELEE_DESKTOP_STOCKS", 4, 1, 99);
-
-    /* Use Melee's ordinary stock-match state machine, player initialization,
-     * combat and CPU. Only the arena geometry and presentation are changed. */
+    desktop_roster_size = option_int("MELEE_DESKTOP_PLAYERS", 2, 2, 4);
     gm_SetupRulesDefaults(&start->rules);
     start->rules.stkind = St_Kind_Last;
     start->rules.match_kind = MatchKind_Stock;
     start->rules.is_stock = true;
     start->rules.is_vs = true;
+    start->rules.is_teams = false;
     start->rules.item_freq = -1;
     start->rules.timer_enabled = false;
     start->rules.time_limit = 0;
     start->rules.sd_penalty = -1;
-    for (i = 0; i < GM_MAX_PLAYERS; ++i) {
-        gm_SetupPlayerDefaults(&start->players[i]);
-    }
-    for (i = 0; i < 2; ++i) {
+    for (i = 0; i < GM_MAX_PLAYERS; ++i) gm_SetupPlayerDefaults(&start->players[i]);
+    for (i = 0; i < desktop_roster_size; ++i) {
         PlayerInitData* player = &start->players[i];
-        int count;
-        player->ckind = option_int(i ? "MELEE_DESKTOP_P2" : "MELEE_DESKTOP_P1",
-                                  i ? CKind_Falco : CKind_Fox,
-                                  0, CKind_Playable_Count - 1);
-        count = gm_GetNumCostumesForCKind(player->ckind);
-        player->color = option_int(i ? "MELEE_DESKTOP_COSTUME2" :
-                                      "MELEE_DESKTOP_COSTUME1",
-                                  0, 0, count > 0 ? count - 1 : 0);
-        player->slot_type = (watch || (i == 1 && cpu != 0)) ?
-                                Gm_PKind_Cpu : Gm_PKind_Human;
-        /* Zero means automatic; explicit controller slots are 1-based. */
-        player->slot = i + 1;
+        const int legacy_control = watch || (i != 0 && cpu != 0) ? 0 : i + 1;
+        int control = option_int(control_keys[i], legacy_control, 0, 4);
+        int colors, attempt;
+        if (control && (used_ports & (1 << control))) {
+            pc_log_line("desktop: P%d repeats controller port %d; using CPU", i+1, control);
+            control = 0;
+        }
+        if (control) used_ports |= 1 << control;
+        player->ckind = option_int(character_keys[i],defaults[i],0,CKind_Playable_Count-1);
+        colors = gm_GetNumCostumesForCKind(player->ckind);
+        player->color = option_int(costume_keys[i],0,0,colors > 0 ? colors-1 : 0);
+        // Prefer distinct costumes for repeated characters, including P3/P4.
+        for (attempt = 0; attempt < colors; ++attempt) {
+            int j, repeated = 0;
+            for (j = 0; j < i; ++j)
+                if (start->players[j].ckind == player->ckind && start->players[j].color == player->color)
+                    repeated = 1;
+            if (!repeated) break;
+            player->color = (player->color+1) % colors;
+        }
+        player->slot_type = control ? Gm_PKind_Human : Gm_PKind_Cpu;
+        player->slot = control ? control : i+1;
         player->stocks = stocks;
         player->cpu_level = cpu ? cpu : 5;
-        player->cpu_kind = 4; /* ordinary VS CPU, matching gm_SetupPlayerDefaults */
+        player->cpu_kind = 4;
+        pc_log_line("desktop: P%d character=%d type=%d port=%d level=%d stocks=%d",
+            i+1,player->ckind,player->slot_type,player->slot,player->cpu_level,player->stocks);
     }
-    if (start->players[0].ckind == start->players[1].ckind &&
-        start->players[0].color == start->players[1].color) {
-        int count = gm_GetNumCostumesForCKind(start->players[1].ckind);
-        if (count > 1) {
-            start->players[1].color = (start->players[1].color + 1) % count;
-        }
-    }
-    pc_log_line("desktop: match mode=%s stock=%u teams=%u "
-                "P1(character=%d type=%d cpu=%d level=%d stocks=%d) "
-                "P2(character=%d type=%d cpu=%d level=%d stocks=%d)",
-                watch ? "watch" : "play", (unsigned) start->rules.is_stock,
-                (unsigned) start->rules.is_teams,
-                start->players[0].ckind, start->players[0].slot_type,
-                start->players[0].cpu_kind, start->players[0].cpu_level,
-                start->players[0].stocks,
-                start->players[1].ckind, start->players[1].slot_type,
-                start->players[1].cpu_kind, start->players[1].cpu_level,
-                start->players[1].stocks);
+    pc_log_line("desktop: %d-fighter free-for-all; stock=%u teams=%u",desktop_roster_size,
+        (unsigned)start->rules.is_stock,(unsigned)start->rules.is_teams);
 }
 
 void pc_desktop_begin_match(StartMeleeData* start)
@@ -798,7 +799,7 @@ float pc_desktop_cpu_vertical_margin(float original)
 void pc_desktop_simulation_tick(void)
 {
     VsSceneState* state;
-    Fighter* fighters[2];
+    Fighter* fighters[4];
     int i;
     if (!match_active || simulation_ticks >= 300) {
         return;
@@ -817,11 +818,11 @@ void pc_desktop_simulation_tick(void)
                 gm_GetDbPauseFlag(0), gm_GetDbPauseFlag(1),
                 view_bottom, pc_desktop_cpu_vertical_margin(10.0f),
                 active_window_platforms, active_wallpaper_platforms);
-    for (i = 0; i < 2; ++i) {
+    for (i = 0; i < desktop_roster_size; ++i) {
         HSD_GObj* entity = Player_GetEntity(i);
         fighters[i] = entity != NULL ? entity->user_data : NULL;
     }
-    for (i = 0; i < 2; ++i) {
+    for (i = 0; i < desktop_roster_size; ++i) {
         Fighter* fighter = fighters[i];
         int target = -1;
         if (fighter == NULL) {
@@ -832,8 +833,10 @@ void pc_desktop_simulation_tick(void)
         /* Compare target identities instead of dereferencing a target that
          * may have been removed later in this simulation tick. */
         if (fighter->cpu.x44 != NULL) {
-            target = fighter->cpu.x44 == fighters[0] ? 1 :
-                     fighter->cpu.x44 == fighters[1] ? 2 : -2;
+            int j;
+            target = -2;
+            for (j = 0; j < desktop_roster_size; ++j)
+                if (fighter->cpu.x44 == fighters[j]) target = j+1;
         }
         pc_log_line("desktop: P%d type=%d stocks=%d cpu=%d level=%d "
                     "cpu_tick=%d target=%d input_disabled=%u sleeping=%u "
@@ -877,13 +880,12 @@ bool pc_desktop_apply_camera(HSD_CObj* camera, CameraTransformState* transform)
 bool pc_desktop_spawn_position(int slot, bool rebirth, float* x, float* y,
                                float* z)
 {
-    float center, separation;
-    if (!pc_desktop_collision_fixed()) {
-        return false;
-    }
+    float center, span, spacing;
+    if (!pc_desktop_collision_fixed() || slot < 0 || slot >= desktop_roster_size) return false;
     center = 0.5f * (floor_left + floor_right);
-    separation = fminf(40.0f, (floor_right - floor_left) * 0.2f);
-    *x = center + ((slot & 1) ? separation : -separation);
+    span = fminf(80.0f * (desktop_roster_size-1), (floor_right-floor_left)*0.4f);
+    spacing = span / (desktop_roster_size-1);
+    *x = center + (slot - 0.5f*(desktop_roster_size-1))*spacing;
     *y = rebirth ? 60.0f : 0.0f;
     *z = 0.0f;
     return true;

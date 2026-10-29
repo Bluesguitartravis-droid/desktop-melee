@@ -63,8 +63,8 @@ static int stage_visible;
 static float quake_scale;
 static HSD_GObj* fixture_heads[32];
 HSD_GObj** HSD_GObjPLinkHead = fixture_heads;
-static Fighter fighters[2];
-static HSD_GObj fighter_objects[2];
+static Fighter fighters[4];
+static HSD_GObj fighter_objects[4];
 
 bool aurora_desktop_get_geometry(AuroraDesktopGeometry* out)
 {
@@ -288,6 +288,64 @@ static float pixel_y(const HSD_CObj* camera, float y)
          camera->projection_param.ortho.bottom) * supplied_geometry.height;
 }
 
+/* Real game match setup, CPU target search, spawn and HUD regressions. */
+static void check_four_player_targeting(void)
+{
+    StartMeleeData start = {0};
+    float x[4], y, z;
+    setenv("MELEE_DESKTOP_PLAYERS","4",1);
+    setenv("MELEE_DESKTOP_WATCH","1",1);
+    pc_desktop_configure_match(&start);
+    CHECK(pc_desktop_player_count()==4);
+    gmVs_GetSceneController()->start=start.rules;
+    memset(fighters,0,sizeof(fighters));
+    memset(fighter_objects,0,sizeof(fighter_objects));
+    memset(fixture_heads,0,sizeof(fixture_heads));
+    fixture_heads[HSD_GOBJ_PLINK_FIGHTER]=&fighter_objects[0];
+    for (int i=0;i<4;++i) {
+        Fighter* f=&fighters[i];
+        CHECK(start.players[i].slot_type==Gm_PKind_Cpu);
+        CHECK(pc_desktop_spawn_position(i,false,&x[i],&y,&z));
+        CHECK(x[i]>vertices[0].pos.x && x[i]<vertices[1].pos.x);
+        if (i) CHECK(x[i]>x[i-1]);
+        near_value(y,0); near_value(z,0);
+        float respawn;
+        CHECK(pc_desktop_spawn_position(i,true,&respawn,&y,&z));
+        near_value(respawn,x[i]); near_value(y,60);
+        pc_desktop_hud_position(i,4,&respawn,&y);
+        near_value(respawn,((float)i-1.5f)*18); near_value(y,16.5f);
+        f->gobj=&fighter_objects[i]; fighter_objects[i].user_data=f;
+        fighter_objects[i].next=i<3?&fighter_objects[i+1]:NULL;
+        f->player_idx=i; f->team=start.players[i].team; f->kind=Ft_Kind_Fox;
+        f->cur_pos=(Vec3){x[i],0,0}; f->facing_dir=i<2?1:-1;
+        f->co_attrs.gravity=.13f; f->co_attrs.jump_v_initial_velocity=3.68f;
+        f->co_attrs.air_jump_v_multiplier=1.0f;
+        ftCo_800A101C(f,start.players[i].cpu_kind,start.players[i].cpu_level,0);
+    }
+    CHECK(!pc_desktop_spawn_position(4,false,&y,&y,&z));
+    for (int i=0;i<4;++i) {
+        Fighter* target=ftCo_800A4E8C(&fighters[i],&fighters[i].cur_pos);
+        CHECK(target!=NULL && target!=&fighters[i]);
+        CHECK(target>=fighters && target<fighters+4);
+        // Reinitialization is the same path used on respawn.
+        ftCo_800A101C(&fighters[i],CpuKind_4,5,0);
+        CHECK(ftCo_800A4E8C(&fighters[i],&fighters[i].cur_pos)!=NULL);
+    }
+    setenv("MELEE_DESKTOP_PLAYERS","3",1);
+    pc_desktop_configure_match(&start);
+    CHECK(pc_desktop_player_count()==3);
+    for (int i=0;i<3;++i) {
+        CHECK(pc_desktop_spawn_position(i,false,&x[i],&y,&z));
+        if (i) CHECK(x[i]>x[i-1]);
+        pc_desktop_hud_position(i,3,&y,&z);
+        near_value(y,((float)i-1)*18);
+    }
+    CHECK(start.players[3].slot_type==Gm_PKind_NA);
+    unsetenv("MELEE_DESKTOP_PLAYERS");unsetenv("MELEE_DESKTOP_WATCH");
+    pc_desktop_configure_match(&start);
+    CHECK(pc_desktop_player_count()==2);
+}
+
 static void check_geometry(AuroraDesktopGeometry geometry, float scale)
 {
     StartMeleeData start = { 0 };
@@ -370,6 +428,7 @@ static void check_geometry(AuroraDesktopGeometry geometry, float scale)
     pc_desktop_match_loaded();
     CHECK(pc_desktop_match_active() && !stage_visible && quake_scale == 0);
     check_cpu_targeting(true);
+    check_four_player_targeting();
     pc_desktop_end_match();
     CHECK(!pc_desktop_match_active() && !pc_desktop_collision_fixed());
     /* Ordinary arenas retain their original margin and targeting behavior,
@@ -473,9 +532,51 @@ static void check_options(void)
     }
 }
 
+static void check_roster_options(void)
+{
+    StartMeleeData start={0};
+    static const char* keys[]={"MELEE_DESKTOP_CONTROL1","MELEE_DESKTOP_CONTROL2","MELEE_DESKTOP_CONTROL3","MELEE_DESKTOP_CONTROL4"};
+    static const char* chars[]={"MELEE_DESKTOP_P1","MELEE_DESKTOP_P2","MELEE_DESKTOP_P3","MELEE_DESKTOP_P4"};
+    for (int size=2;size<=4;++size) {
+        char value[2]={(char)('0'+size),0};setenv("MELEE_DESKTOP_PLAYERS",value,1);
+        for (int mask=0;mask<(1<<size);++mask) {
+            for (int i=0;i<4;++i) {
+                char port[2]={(char)('1'+i),0};setenv(keys[i],mask&(1<<i)?port:"0",1);
+            }
+            pc_desktop_configure_match(&start);
+            CHECK(pc_desktop_player_count()==size);
+            for (int i=0;i<GM_MAX_PLAYERS;++i) {
+                if (i>=size) CHECK(start.players[i].slot_type==Gm_PKind_NA);
+                else {
+                    CHECK(start.players[i].slot_type==((mask&(1<<i))?Gm_PKind_Human:Gm_PKind_Cpu));
+                    CHECK(start.players[i].slot==i+1);
+                }
+            }
+        }
+    }
+    // Four copies of the same fighter have distinct available costumes.
+    for (int i=0;i<4;++i) setenv(chars[i],"20",1);
+    pc_desktop_configure_match(&start);
+    for (int i=0;i<4;++i)for(int j=0;j<i;++j)CHECK(start.players[i].color!=start.players[j].color);
+    // Duplicate controller assignments cannot drive two fighters at once.
+    setenv(keys[0],"1",1);setenv(keys[1],"1",1);
+    pc_desktop_configure_match(&start);
+    CHECK(start.players[0].slot_type==Gm_PKind_Human && start.players[1].slot_type==Gm_PKind_Cpu);
+    // Controller ports can be assigned independently of fighter slot.
+    setenv(keys[0],"0",1);setenv(keys[1],"1",1);setenv(keys[2],"2",1);setenv(keys[3],"0",1);
+    pc_desktop_configure_match(&start);
+    CHECK(start.players[1].slot==1 && start.players[2].slot==2);
+    for (int i=0;i<4;++i){unsetenv(keys[i]);unsetenv(chars[i]);}
+    setenv("MELEE_DESKTOP_PLAYERS","not-a-number",1);pc_desktop_configure_match(&start);CHECK(pc_desktop_player_count()==2);
+    setenv("MELEE_DESKTOP_PLAYERS","99",1);pc_desktop_configure_match(&start);CHECK(pc_desktop_player_count()==4);
+    setenv("MELEE_DESKTOP_PLAYERS","1",1);pc_desktop_configure_match(&start);CHECK(pc_desktop_player_count()==2);
+    unsetenv("MELEE_DESKTOP_PLAYERS");pc_desktop_configure_match(&start);
+}
+
 int main(void)
 {
     check_options();
+    check_roster_options();
     /* User's exact geometry; short/high-DPI bars; fallback 48px platform;
      * and a tall bar where the original ten-unit safety band still fits. */
     check_geometry((AuroraDesktopGeometry) { 0, 0, 1920, 1080, 0, 1040, 1920, 1080 }, 1);

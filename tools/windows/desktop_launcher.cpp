@@ -6,6 +6,7 @@
 #include <commdlg.h>
 #include <shellapi.h>
 #include <shlobj.h>
+#include "../../extern/aurora/include/aurora/desktop_monitor_windows.hpp"
 
 #include "desktop_update.hpp"
 
@@ -29,6 +30,10 @@ enum : int {
     IdModeLabel, IdMode, IdP1Label, IdP1, IdP2Label, IdP2,
     IdCostume1Label, IdCostume1, IdCostume2Label, IdCostume2,
     IdLevelLabel, IdLevel, IdStocksLabel, IdStocks, IdUcf, IdWindows, IdWallpaper,
+    IdCountLabel, IdCount, IdMonitorLabel, IdMonitor, IdRefresh,
+    IdP3Label, IdP3, IdP4Label, IdP4, IdCostume3, IdCostume4,
+    IdControl1, IdControl2, IdControl3, IdControl4,
+    IdCharacterHeader, IdCostumeHeader, IdControlHeader,
     IdInstructions, IdStatus, IdStart, IdStop, IdLogs,
     IdUpdateStatus, IdUpdate
 };
@@ -56,6 +61,12 @@ struct State {
     desktop_update::UpdateChecker updates;
     desktop_update::UpdateResult update_result;
 } app;
+constexpr int character_controls[] = {IdP1,IdP2,IdP3,IdP4};
+constexpr int costume_controls[] = {IdCostume1,IdCostume2,IdCostume3,IdCostume4};
+constexpr int input_controls[] = {IdControl1,IdControl2,IdControl3,IdControl4};
+constexpr int slot_labels[] = {IdP1Label,IdP2Label,IdP3Label,IdP4Label};
+std::vector<aurora::desktop::monitors::Monitor> monitor_choices;
+std::wstring missing_monitor_id;
 
 int px(int value) { return MulDiv(value, app.dpi, 96); }
 HWND child(int id) { return GetDlgItem(app.window, id); }
@@ -242,35 +253,27 @@ void place(int id, int x, int y, int width, int height) {
 
 void layout() {
     if (!child(IdStart)) return;
-    place(IdTitle, 28, 22, 640, 40);
-    place(IdSubtitle, 30, 67, 640, 24);
-    place(IdDiscLabel, 30, 112, 640, 22);
-    place(IdDisc, 30, 140, 522, 30);
-    place(IdBrowse, 562, 139, 108, 32);
-    place(IdModeLabel, 30, 192, 175, 22);
-    place(IdMode, 210, 189, 460, 140);
-    place(IdP1Label, 30, 237, 305, 22);
-    place(IdP2Label, 365, 237, 305, 22);
-    place(IdP1, 30, 263, 305, 320);
-    place(IdP2, 365, 263, 305, 320);
-    place(IdCostume1Label, 30, 306, 100, 22);
-    place(IdCostume1, 132, 302, 203, 220);
-    place(IdCostume2Label, 365, 306, 100, 22);
-    place(IdCostume2, 467, 302, 203, 220);
-    place(IdLevelLabel, 30, 350, 100, 22);
-    place(IdLevel, 132, 346, 96, 240);
-    place(IdStocksLabel, 365, 350, 100, 22);
-    place(IdStocks, 467, 346, 96, 240);
-    place(IdUcf, 30, 390, 305, 24);
-    place(IdWindows, 365, 390, 305, 24);
-    place(IdWallpaper, 30, 420, 640, 24);
-    place(IdInstructions, 30, 458, 640, 48);
-    place(IdStatus, 30, 512, 640, 32);
-    place(IdLogs, 30, 553, 140, 34);
-    place(IdStop, 365, 553, 130, 34);
-    place(IdStart, 505, 551, 165, 38);
-    place(IdUpdateStatus, 30, 608, 465, 40);
-    place(IdUpdate, 510, 606, 160, 34);
+    place(IdTitle,28,14,640,36); place(IdSubtitle,30,54,640,22);
+    place(IdDiscLabel,30,82,640,20); place(IdDisc,30,104,522,28); place(IdBrowse,562,103,108,30);
+    place(IdMonitorLabel,30,144,90,22); place(IdMonitor,125,140,430,300); place(IdRefresh,565,139,105,30);
+    place(IdModeLabel,30,183,175,22); place(IdMode,210,179,460,160);
+    place(IdCountLabel,30,219,90,22); place(IdCount,125,215,80,160);
+    place(IdLevelLabel,365,219,100,22); place(IdLevel,467,215,96,240);
+    place(IdCharacterHeader,80,248,220,22); place(IdCostumeHeader,310,248,140,22);
+    place(IdControlHeader,460,248,210,22);
+    for (int i=0;i<4;++i) {
+        const int y=273+i*35;
+        place(slot_labels[i],30,y+3,45,22);
+        place(character_controls[i],80,y,220,320);
+        place(costume_controls[i],310,y,140,220);
+        place(input_controls[i],460,y,210,220);
+    }
+    place(IdStocksLabel,30,417,100,22); place(IdStocks,132,413,96,240);
+    place(IdUcf,365,414,305,24);
+    place(IdWindows,30,450,325,24); place(IdWallpaper,365,450,305,24);
+    place(IdInstructions,30,487,640,40); place(IdStatus,30,532,640,36);
+    place(IdLogs,30,574,140,34); place(IdStop,365,574,130,34); place(IdStart,505,572,165,38);
+    place(IdUpdateStatus,30,621,465,35); place(IdUpdate,510,619,160,34);
 }
 
 void set_fonts() {
@@ -312,80 +315,125 @@ int fighter_index(int id) {
     return 5;
 }
 int fighter_id(int control) { return fighters[selection(control)].id; }
-void update_mode() {
-    int mode = selection(IdMode);
-    EnableWindow(child(IdLevel), mode != 2);
-    label(IdP1Label, mode == 1 ? L"CPU 1" : L"Player 1 / controller port 1");
-    label(IdP2Label, mode == 2 ? L"Player 2 / controller port 2" : L"CPU opponent");
+int roster_count() { return selection(IdCount)+2; }
+
+std::wstring chosen_monitor_id() {
+    const int index=selection(IdMonitor);
+    if (index==0) return {};
+    if (index>0 && size_t(index)<=monitor_choices.size()) return monitor_choices[index-1].id;
+    return missing_monitor_id;
+}
+
+void refresh_monitors(const std::wstring& wanted) {
+    monitor_choices=aurora::desktop::monitors::enumerate();
+    SendMessageW(child(IdMonitor),CB_RESETCONTENT,0,0);
+    item(IdMonitor,L"Primary display (automatic)");
+    int selected=0;
+    bool found=wanted.empty();
+    for (size_t i=0;i<monitor_choices.size();++i) {
+        item(IdMonitor,monitor_choices[i].label.c_str());
+        if (!wanted.empty() && aurora::desktop::monitors::same_id(wanted,monitor_choices[i].id)) {
+            selected=static_cast<int>(i)+1; found=true;
+        }
+    }
+    missing_monitor_id.clear();
+    if (!found) {
+        missing_monitor_id=wanted;
+        item(IdMonitor,L"Previously selected display is disconnected - choose another");
+        selected=static_cast<int>(monitor_choices.size())+1;
+    }
+    select(IdMonitor,selected);
+    SendMessageW(child(IdMonitor),CB_SETDROPPEDWIDTH,px(640),0);
+}
+
+void update_mode(bool preset=true) {
+    const int mode=selection(IdMode), count=roster_count();
+    const bool editable=app.process==nullptr;
+    bool cpu=false;
+    for (int i=0;i<4;++i) {
+        if (preset && mode<3) select(input_controls[i],mode==1?0:(mode==2?i+1:(i==0?1:0)));
+        const bool active=i<count;
+        const std::wstring name=L"P"+std::to_wstring(i+1);
+        label(slot_labels[i],name.c_str());
+        for (int id : {slot_labels[i],character_controls[i],costume_controls[i],input_controls[i]})
+            EnableWindow(child(id),editable && active);
+        if (active && selection(input_controls[i])==0) cpu=true;
+    }
+    for (int id : {IdMode,IdCount,IdMonitor,IdRefresh,IdStocks,IdDisc,IdBrowse,IdUcf,IdWindows,IdWallpaper})
+        EnableWindow(child(id),editable);
+    EnableWindow(child(IdLevel),editable && cpu);
 }
 
 void make_form() {
     set_fonts();
-    make(IdTitle, L"STATIC", L"Desktop Melee");
-    SendMessageW(child(IdTitle), WM_SETFONT, reinterpret_cast<WPARAM>(app.heading), TRUE);
-    make(IdSubtitle, L"STATIC", L"WINDOWS PREVIEW 6  /  VERSION " DESKTOP_WIDEN(DESKTOP_MELEE_VERSION));
-    make(IdDiscLabel, L"STATIC", L"Your Melee USA 1.02 disc image");
-    make(IdDisc, L"EDIT", L"", WS_TABSTOP | ES_AUTOHSCROLL, WS_EX_CLIENTEDGE);
-    make(IdBrowse, L"BUTTON", L"Browse...", WS_TABSTOP | BS_PUSHBUTTON);
-    make(IdModeLabel, L"STATIC", L"Match mode");
-    make(IdMode, L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL);
-    item(IdMode, L"Play against a CPU");
-    item(IdMode, L"Watch two CPUs");
-    item(IdMode, L"Two local players");
-    make(IdP1Label, L"STATIC", L"Player 1 / controller port 1");
-    make(IdP2Label, L"STATIC", L"CPU opponent");
-    for (int id : {IdP1, IdP2}) {
-        make(id, L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL);
-        for (const auto& fighter : fighters) item(id, fighter.name);
+    make(IdTitle,L"STATIC",L"Desktop Melee");
+    SendMessageW(child(IdTitle),WM_SETFONT,reinterpret_cast<WPARAM>(app.heading),TRUE);
+    make(IdSubtitle,L"STATIC",L"WINDOWS / VERSION " DESKTOP_WIDEN(DESKTOP_MELEE_VERSION) L" / FOUR FIGHTERS + MONITOR SELECTION");
+    make(IdDiscLabel,L"STATIC",L"Your Melee USA 1.02 disc image");
+    make(IdDisc,L"EDIT",L"",WS_TABSTOP|ES_AUTOHSCROLL,WS_EX_CLIENTEDGE);
+    make(IdBrowse,L"BUTTON",L"Browse...",WS_TABSTOP|BS_PUSHBUTTON);
+    make(IdMonitorLabel,L"STATIC",L"Display");
+    make(IdMonitor,L"COMBOBOX",L"",WS_TABSTOP|CBS_DROPDOWNLIST|WS_VSCROLL);
+    make(IdRefresh,L"BUTTON",L"Refresh",WS_TABSTOP|BS_PUSHBUTTON);
+    make(IdModeLabel,L"STATIC",L"Match preset");
+    make(IdMode,L"COMBOBOX",L"",WS_TABSTOP|CBS_DROPDOWNLIST|WS_VSCROLL);
+    item(IdMode,L"Player 1 vs. CPUs"); item(IdMode,L"Watch CPUs");
+    item(IdMode,L"Local players"); item(IdMode,L"Custom player / CPU mix");
+    make(IdCountLabel,L"STATIC",L"Fighters");
+    make(IdCount,L"COMBOBOX",L"",WS_TABSTOP|CBS_DROPDOWNLIST|WS_VSCROLL);
+    for (int i=2;i<=4;++i) item(IdCount,std::to_wstring(i).c_str());
+    make(IdCharacterHeader,L"STATIC",L"Character"); make(IdCostumeHeader,L"STATIC",L"Costume");
+    make(IdControlHeader,L"STATIC",L"Control / controller port");
+    for (int i=0;i<4;++i) {
+        make(slot_labels[i],L"STATIC",L"");
+        make(character_controls[i],L"COMBOBOX",L"",WS_TABSTOP|CBS_DROPDOWNLIST|WS_VSCROLL);
+        for (const auto& fighter:fighters) item(character_controls[i],fighter.name);
+        make(costume_controls[i],L"COMBOBOX",L"",WS_TABSTOP|CBS_DROPDOWNLIST|WS_VSCROLL);
+        item(costume_controls[i],L"Default");
+        for (int j=1;j<6;++j) item(costume_controls[i],(L"Alternate "+std::to_wstring(j)).c_str());
+        make(input_controls[i],L"COMBOBOX",L"",WS_TABSTOP|CBS_DROPDOWNLIST|WS_VSCROLL);
+        item(input_controls[i],L"CPU");
+        for (int j=1;j<=4;++j) item(input_controls[i],(L"Controller port "+std::to_wstring(j)).c_str());
     }
-    make(IdCostume1Label, L"STATIC", L"Costume");
-    make(IdCostume2Label, L"STATIC", L"Costume");
-    for (int id : {IdCostume1, IdCostume2}) {
-        make(id, L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL);
-        item(id, L"Default");
-        for (int i = 1; i < 6; ++i) item(id, (L"Alternate " + std::to_wstring(i)).c_str());
+    make(IdLevelLabel,L"STATIC",L"CPU level");
+    make(IdLevel,L"COMBOBOX",L"",WS_TABSTOP|CBS_DROPDOWNLIST|WS_VSCROLL);
+    make(IdStocksLabel,L"STATIC",L"Stocks");
+    make(IdStocks,L"COMBOBOX",L"",WS_TABSTOP|CBS_DROPDOWNLIST|WS_VSCROLL);
+    for (int i=1;i<=9;++i) { item(IdLevel,std::to_wstring(i).c_str()); item(IdStocks,std::to_wstring(i).c_str()); }
+    make(IdUcf,L"BUTTON",L"Enable UCF controller fixes",WS_TABSTOP|BS_AUTOCHECKBOX);
+    make(IdWindows,L"BUTTON",L"Use open window tops as platforms",WS_TABSTOP|BS_AUTOCHECKBOX);
+    make(IdWallpaper,L"BUTTON",L"Wallpaper terrain (experimental)",WS_TABSTOP|BS_AUTOCHECKBOX);
+    make(IdInstructions,L"STATIC",L"Play on the selected display. Stop the match before changing its setup.\nCtrl+Shift+F10: pause / settings     Ctrl+Shift+F11: quit");
+    make(IdStatus,L"STATIC",L"Choose 2-4 fighters. Each human needs a different controller port.");
+    make(IdLogs,L"BUTTON",L"Open game folder",WS_TABSTOP|BS_PUSHBUTTON);
+    make(IdStop,L"BUTTON",L"Stop match",WS_TABSTOP|BS_PUSHBUTTON);
+    make(IdStart,L"BUTTON",L"Start desktop match",WS_TABSTOP|BS_DEFPUSHBUTTON);
+    make(IdUpdateStatus,L"STATIC",L"Checking GitHub for updates...");
+    make(IdUpdate,L"BUTTON",L"Checking...",WS_TABSTOP|BS_PUSHBUTTON);
+    EnableWindow(child(IdUpdate),FALSE); EnableWindow(child(IdStop),FALSE);
+    SendMessageW(child(IdDisc),EM_SETLIMITTEXT,32760,0);
+    std::array<wchar_t,32768> disc{};
+    GetPrivateProfileStringW(L"Match",L"Disc",L"",disc.data(),disc.size(),app.config.c_str());
+    SetWindowTextW(child(IdDisc),disc.data());
+    select(IdMode,config_int(L"Mode",0,0,3)); select(IdCount,config_int(L"FighterCount",2,2,4)-2);
+    const int mode=selection(IdMode);
+    const int defaults[]={2,20,8,9};
+    for (int i=0;i<4;++i) {
+        const auto n=std::to_wstring(i+1);
+        select(character_controls[i],fighter_index(config_int((L"P"+n).c_str(),defaults[i],0,25)));
+        select(costume_controls[i],config_int((L"Costume"+n).c_str(),0,0,5));
+        const int control=mode==1?0:(mode==2?i+1:(i==0?1:0));
+        select(input_controls[i],config_int((L"Control"+n).c_str(),control,0,4));
     }
-    make(IdLevelLabel, L"STATIC", L"CPU level");
-    make(IdLevel, L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL);
-    for (int i = 1; i <= 9; ++i) item(IdLevel, std::to_wstring(i).c_str());
-    make(IdStocksLabel, L"STATIC", L"Stocks");
-    make(IdStocks, L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL);
-    for (int i = 1; i <= 9; ++i) item(IdStocks, std::to_wstring(i).c_str());
-    make(IdUcf, L"BUTTON", L"Enable UCF controller fixes", WS_TABSTOP | BS_AUTOCHECKBOX);
-    make(IdWindows, L"BUTTON", L"Use open window tops as platforms", WS_TABSTOP | BS_AUTOCHECKBOX);
-    make(IdWallpaper, L"BUTTON", L"Generate platforms from wallpaper (experimental)",
-        WS_TABSTOP | BS_AUTOCHECKBOX);
-    make(IdInstructions, L"STATIC",
-        L"Use a controller while your desktop stays clickable. Right-click the tray icon for controls.\n"
-        L"Ctrl+Shift+F10: pause / settings     Ctrl+Shift+F11: quit");
-    make(IdStatus, L"STATIC", L"Experimental build. Start with a bottom taskbar on your primary display.");
-    make(IdLogs, L"BUTTON", L"Open game folder", WS_TABSTOP | BS_PUSHBUTTON);
-    make(IdStop, L"BUTTON", L"Stop match", WS_TABSTOP | BS_PUSHBUTTON);
-    make(IdStart, L"BUTTON", L"Start desktop match", WS_TABSTOP | BS_DEFPUSHBUTTON);
-    make(IdUpdateStatus, L"STATIC", L"Checking GitHub for updates...");
-    make(IdUpdate, L"BUTTON", L"Checking...", WS_TABSTOP | BS_PUSHBUTTON);
-    EnableWindow(child(IdUpdate), FALSE);
-    EnableWindow(child(IdStop), FALSE);
-    SendMessageW(child(IdDisc), EM_SETLIMITTEXT, 32760, 0);
-    std::array<wchar_t, 32768> disc{};
-    GetPrivateProfileStringW(L"Match", L"Disc", L"", disc.data(), disc.size(), app.config.c_str());
-    SetWindowTextW(child(IdDisc), disc.data());
-    select(IdMode, config_int(L"Mode", 0, 0, 2));
-    select(IdP1, fighter_index(config_int(L"P1", 2, 0, 25)));
-    select(IdP2, fighter_index(config_int(L"P2", 20, 0, 25)));
-    select(IdCostume1, config_int(L"Costume1", 0, 0, 5));
-    select(IdCostume2, config_int(L"Costume2", 0, 0, 5));
-    select(IdLevel, config_int(L"CPU", 5, 1, 9) - 1);
-    select(IdStocks, config_int(L"Stocks", 4, 1, 9) - 1);
-    SendMessageW(child(IdUcf), BM_SETCHECK, config_int(L"UCF", 1, 0, 1) ? BST_CHECKED : BST_UNCHECKED, 0);
-    SendMessageW(child(IdWindows), BM_SETCHECK,
-        config_int(L"WindowPlatforms", 1, 0, 1) ? BST_CHECKED : BST_UNCHECKED, 0);
-    SendMessageW(child(IdWallpaper), BM_SETCHECK,
-        config_int(L"WallpaperPlatforms", 0, 0, 1) ? BST_CHECKED : BST_UNCHECKED, 0);
-    update_mode();
-    layout();
-    if (!app.settings_writable)
-        status(L"Settings could not be saved here. You can still select a disc and start a match.");
+    select(IdLevel,config_int(L"CPU",5,1,9)-1); select(IdStocks,config_int(L"Stocks",4,1,9)-1);
+    SendMessageW(child(IdUcf),BM_SETCHECK,config_int(L"UCF",1,0,1)?BST_CHECKED:BST_UNCHECKED,0);
+    SendMessageW(child(IdWindows),BM_SETCHECK,config_int(L"WindowPlatforms",1,0,1)?BST_CHECKED:BST_UNCHECKED,0);
+    SendMessageW(child(IdWallpaper),BM_SETCHECK,config_int(L"WallpaperPlatforms",0,0,1)?BST_CHECKED:BST_UNCHECKED,0);
+    wchar_t monitor[1024]{};
+    GetPrivateProfileStringW(L"Match",L"Monitor",L"",monitor,1024,app.config.c_str());
+    refresh_monitors(monitor);
+    update_mode(mode!=3); layout();
+    if (!app.settings_writable) status(L"Settings could not be saved. You can still choose a disc and start a match.");
 }
 
 void browse() {
@@ -426,71 +474,74 @@ void stop() {
 
 void start() {
     if (app.process) return;
-    const std::wstring disc = text(IdDisc);
+    const std::wstring disc=text(IdDisc);
     if (disc.empty()) { status(L"Choose your own USA 1.02 Melee disc image first."); browse(); return; }
-    DWORD attributes = GetFileAttributesW(disc.c_str());
-    if (attributes == INVALID_FILE_ATTRIBUTES || (attributes & FILE_ATTRIBUTE_DIRECTORY)) {
-        status(L"That disc file could not be opened. Choose a file that is available on this PC.");
-        return;
+    const DWORD attributes=GetFileAttributesW(disc.c_str());
+    if (attributes==INVALID_FILE_ATTRIBUTES || (attributes&FILE_ATTRIBUTE_DIRECTORY)) {
+        status(L"That disc file could not be opened. Choose a file available on this PC."); return;
     }
-    const auto engine = app.folder / L"melee.exe";
-    if (GetFileAttributesW(engine.c_str()) == INVALID_FILE_ATTRIBUTES) {
-        MessageBoxW(app.window,
-            L"melee.exe is missing. Reinstall Desktop Melee, or re-extract the entire portable ZIP.",
-            L"Desktop Melee", MB_OK | MB_ICONERROR);
-        return;
+    const auto engine=app.folder/L"melee.exe";
+    if (GetFileAttributesW(engine.c_str())==INVALID_FILE_ATTRIBUTES) {
+        MessageBoxW(app.window,L"melee.exe is missing. Reinstall Desktop Melee or extract the entire ZIP.",L"Desktop Melee",MB_OK|MB_ICONERROR); return;
     }
-    const int mode = selection(IdMode);
-    const int level = selection(IdLevel) + 1;
-    const int stocks = selection(IdStocks) + 1;
-    const int ucf = SendMessageW(child(IdUcf), BM_GETCHECK, 0, 0) == BST_CHECKED;
-    const int windows = SendMessageW(child(IdWindows), BM_GETCHECK, 0, 0) == BST_CHECKED;
-    const int wallpaper = SendMessageW(child(IdWallpaper), BM_GETCHECK, 0, 0) == BST_CHECKED;
+    const int count=roster_count();
+    int used=0;
+    for (int i=0;i<count;++i) {
+        const int port=selection(input_controls[i]);
+        if (port && (used&(1<<port))) {
+            status(L"Two fighters use the same controller port. Choose different ports or CPU."); return;
+        }
+        if (port) used|=1<<port;
+    }
+    const auto monitor=chosen_monitor_id();
+    AuroraDesktopGeometry geometry{};
+    if (!aurora::desktop::monitors::geometry(monitor,geometry)) {
+        status(L"Selected display is unavailable. Click Refresh and choose a connected display."); return;
+    }
+    const int mode=selection(IdMode), level=selection(IdLevel)+1, stocks=selection(IdStocks)+1;
+    const int ucf=SendMessageW(child(IdUcf),BM_GETCHECK,0,0)==BST_CHECKED;
+    const int windows=SendMessageW(child(IdWindows),BM_GETCHECK,0,0)==BST_CHECKED;
+    const int wallpaper=SendMessageW(child(IdWallpaper),BM_GETCHECK,0,0)==BST_CHECKED;
     if (app.settings_writable) {
-        WritePrivateProfileStringW(L"Match", L"Disc", disc.c_str(), app.config.c_str());
-        save_int(L"Mode", mode);
-        save_int(L"P1", fighter_id(IdP1)); save_int(L"P2", fighter_id(IdP2));
-        save_int(L"Costume1", selection(IdCostume1)); save_int(L"Costume2", selection(IdCostume2));
-        save_int(L"CPU", level); save_int(L"Stocks", stocks); save_int(L"UCF", ucf);
-        save_int(L"WindowPlatforms", windows);
-        save_int(L"WallpaperPlatforms", wallpaper);
+        WritePrivateProfileStringW(L"Match",L"Disc",disc.c_str(),app.config.c_str());
+        WritePrivateProfileStringW(L"Match",L"Monitor",monitor.c_str(),app.config.c_str());
+        save_int(L"Mode",mode); save_int(L"FighterCount",count);
+        save_int(L"CPU",level); save_int(L"Stocks",stocks); save_int(L"UCF",ucf);
+        save_int(L"WindowPlatforms",windows); save_int(L"WallpaperPlatforms",wallpaper);
     }
-    env(L"MELEE_DESKTOP", 1);
-    env(L"MELEE_DESKTOP_P1", fighter_id(IdP1)); env(L"MELEE_DESKTOP_P2", fighter_id(IdP2));
-    env(L"MELEE_DESKTOP_COSTUME1", selection(IdCostume1));
-    env(L"MELEE_DESKTOP_COSTUME2", selection(IdCostume2));
-    env(L"MELEE_DESKTOP_CPU", mode == 2 ? 0 : level);
-    env(L"MELEE_DESKTOP_WATCH", mode == 1 ? 1 : 0);
-    env(L"MELEE_DESKTOP_STOCKS", stocks);
-    env(L"MELEE_DESKTOP_WINDOWS", windows);
-    env(L"MELEE_DESKTOP_WALLPAPER", wallpaper);
-    env(L"MELEE_UCF", ucf);
-    SetEnvironmentVariableW(L"MELEE_BOOT_SCENE", L"vs");
-    SetEnvironmentVariableW(L"MELEE_WINDOW_TITLE", L"Desktop Melee - Windows Preview 6");
-    SetEnvironmentVariableW(L"MELEE_LOG_FILE", (app.folder / L"desktop-melee.log").c_str());
-    /* Keep inherited automated-run fixtures from selecting online play or
-     * changing this launcher's explicit two-player local match. */
-    for (const wchar_t* key : {L"MELEE_NET", L"MELEE_NET_TEST", L"MELEE_VS_SWEEP",
-             L"MELEE_EXIT_AFTER_FRAMES", L"MELEE_LAN_TEST"})
-        SetEnvironmentVariableW(key, nullptr);
-    std::wstring command = quote(engine.wstring()) + L" --desktop " + quote(disc);
-    STARTUPINFOW startup{};
-    startup.cb = sizeof(startup);
-    PROCESS_INFORMATION process{};
-    if (!CreateProcessW(engine.c_str(), command.data(), nullptr, nullptr, FALSE,
-            CREATE_NO_WINDOW, nullptr, app.folder.c_str(), &startup, &process)) {
-        const std::wstring message = L"Could not start Melee.\n\n" + error_text(GetLastError());
-        MessageBoxW(app.window, message.c_str(), L"Desktop Melee", MB_OK | MB_ICONERROR);
-        return;
+    for (int i=0;i<4;++i) {
+        const auto n=std::to_wstring(i+1);
+        const int character=fighter_id(character_controls[i]);
+        const int costume=selection(costume_controls[i]), control=selection(input_controls[i]);
+        if (app.settings_writable) {
+            save_int((L"P"+n).c_str(),character); save_int((L"Costume"+n).c_str(),costume);
+            save_int((L"Control"+n).c_str(),control);
+        }
+        env((L"MELEE_DESKTOP_P"+n).c_str(),character);
+        env((L"MELEE_DESKTOP_COSTUME"+n).c_str(),costume);
+        env((L"MELEE_DESKTOP_CONTROL"+n).c_str(),control);
     }
-    CloseHandle(process.hThread);
-    app.process = process.hProcess;
-    app.process_id = process.dwProcessId;
-    EnableWindow(child(IdStart), FALSE);
-    EnableWindow(child(IdStop), TRUE);
-    status(L"Match running. Use the tray icon or Ctrl+Shift+F10 for settings.");
-    SetTimer(app.window, kMatchTimer, 500, nullptr);
-    ShowWindow(app.window, SW_MINIMIZE);
+    env(L"MELEE_DESKTOP",1); env(L"MELEE_DESKTOP_PLAYERS",count);
+    env(L"MELEE_DESKTOP_CPU",level); env(L"MELEE_DESKTOP_WATCH",used?0:1);
+    env(L"MELEE_DESKTOP_STOCKS",stocks); env(L"MELEE_DESKTOP_WINDOWS",windows);
+    env(L"MELEE_DESKTOP_WALLPAPER",wallpaper); env(L"MELEE_UCF",ucf);
+    SetEnvironmentVariableW(L"MELEE_DESKTOP_MONITOR",monitor.empty()?nullptr:monitor.c_str());
+    SetEnvironmentVariableW(L"MELEE_BOOT_SCENE",L"vs");
+    SetEnvironmentVariableW(L"MELEE_WINDOW_TITLE",L"Desktop Melee - Windows " DESKTOP_WIDEN(DESKTOP_MELEE_VERSION));
+    SetEnvironmentVariableW(L"MELEE_LOG_FILE",(app.folder/L"desktop-melee.log").c_str());
+    for (const wchar_t* key : {L"MELEE_NET",L"MELEE_NET_TEST",L"MELEE_VS_SWEEP",L"MELEE_EXIT_AFTER_FRAMES",L"MELEE_LAN_TEST"})
+        SetEnvironmentVariableW(key,nullptr);
+    std::wstring command=quote(engine.wstring())+L" --desktop "+quote(disc);
+    STARTUPINFOW startup{}; startup.cb=sizeof(startup); PROCESS_INFORMATION process{};
+    if (!CreateProcessW(engine.c_str(),command.data(),nullptr,nullptr,FALSE,CREATE_NO_WINDOW,
+                        nullptr,app.folder.c_str(),&startup,&process)) {
+        const auto message=L"Could not start Melee.\n\n"+error_text(GetLastError());
+        MessageBoxW(app.window,message.c_str(),L"Desktop Melee",MB_OK|MB_ICONERROR); return;
+    }
+    CloseHandle(process.hThread); app.process=process.hProcess; app.process_id=process.dwProcessId;
+    EnableWindow(child(IdStart),FALSE); EnableWindow(child(IdStop),TRUE); update_mode(false);
+    status(L"Match running on the selected display. Ctrl+Shift+F10 opens settings.");
+    SetTimer(app.window,kMatchTimer,500,nullptr); ShowWindow(app.window,SW_MINIMIZE);
 }
 
 void poll() {
@@ -503,6 +554,7 @@ void poll() {
     KillTimer(app.window, kMatchTimer);
     EnableWindow(child(IdStart), TRUE);
     EnableWindow(child(IdStop), FALSE);
+    update_mode(false);
     status(code == 0 ? L"Match closed. Choose your next matchup." :
         L"The game exited with an error. Check desktop-melee.log in the game folder.");
     ShowWindow(app.window, SW_RESTORE);
@@ -523,13 +575,20 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpar
         case IdStart: start(); break;
         case IdStop: stop(); break;
         case IdUpdate: update_action(); break;
-        case IdMode: if (HIWORD(wparam) == CBN_SELCHANGE) update_mode(); break;
+        case IdMode:
+        case IdCount: if (HIWORD(wparam)==CBN_SELCHANGE) update_mode(); break;
+        case IdControl1: case IdControl2: case IdControl3: case IdControl4:
+            if (HIWORD(wparam)==CBN_SELCHANGE) { select(IdMode,3); update_mode(false); } break;
+        case IdRefresh: refresh_monitors(chosen_monitor_id()); break;
         case IdLogs: ShellExecuteW(hwnd, L"open", app.folder.c_str(), nullptr, nullptr, SW_SHOWNORMAL); break;
         }
         return 0;
     case WM_TIMER:
         if (wparam == kMatchTimer) poll();
         else if (wparam == kUpdateTimer) poll_updates();
+        return 0;
+    case WM_DISPLAYCHANGE:
+        if (!app.process) refresh_monitors(chosen_monitor_id());
         return 0;
     case WM_DPICHANGED: {
         app.dpi = HIWORD(wparam);

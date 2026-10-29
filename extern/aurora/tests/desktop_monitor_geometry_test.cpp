@@ -1,0 +1,33 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+#include <aurora/desktop_monitor_geometry.hpp>
+#include <cassert>
+#include <cstdio>
+using namespace aurora::desktop::monitor_geometry;
+int main() {
+    AuroraDesktopGeometry g{};
+    Rect primary{0,0,1920,1080}, bar{0,1040,1920,1080};
+    assert(make(primary,{0,0,1920,1040},&bar,g));
+    assert(g.screen_x==0 && g.platform_top==1040 && g.platform_right==1920);
+    Rect left{-2560,-200,0,1240}, left_bar{-2560,1200,0,1240};
+    assert(make(left,{-2560,-200,0,1200},&left_bar,g));
+    assert(g.screen_x==-2560 && g.screen_y==-200 && g.platform_top==1400 && g.platform_right==2560);
+    assert(make(left,{-2560,-200,0,1240},&bar,g)); // reject primary taskbar
+    assert(g.platform_top==1392 && g.platform_left==0 && g.platform_right==2560);
+    Rect right{1920,0,5760,2160};
+    assert(make(right,right,nullptr,g));
+    assert(g.screen_x==1920 && g.width==3840 && g.platform_top==2112);
+    Rect portrait{1920,-1920,3000,0}, portrait_bar{1920,-48,3000,0};
+    assert(make(portrait,{1920,-1920,3000,-48},&portrait_bar,g));
+    assert(g.height==1920 && g.width==1080 && g.screen_y==-1920 && g.platform_top==1872);
+    Rect top_bar{0,0,1920,48}, side_bar{0,0,48,1080};
+    assert(make(primary,{0,48,1920,1080},&top_bar,g) && g.platform_top==1032);
+    assert(make(primary,{48,0,1920,1080},&side_bar,g) && g.platform_top==1032);
+    Rect hidden{0,1079,1920,1080};
+    assert(make(primary,primary,&hidden,g) && g.platform_top==1032);
+    Rect small{0,0,48,32};
+    assert(make(small,small,nullptr,g) && g.platform_top==1);
+    assert(!make({0,0,0,100},primary,nullptr,g));
+    assert(!make({0,0,20000,100},primary,nullptr,g));
+    assert(!make({0,0,100,3},primary,nullptr,g));
+    puts("monitor geometry: primary, secondary, negative origins, portrait, taskbar isolation and fallback passed");
+}

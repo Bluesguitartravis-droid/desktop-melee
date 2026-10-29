@@ -16,6 +16,7 @@ struct CameraTransformState;
  * desktop match has loaded. The host uses active to manage its native window. */
 bool pc_desktop_requested(void);
 bool pc_desktop_match_active(void);
+int pc_desktop_player_count(void);
 void pc_desktop_configure_match(struct StartMeleeData* start);
 void pc_desktop_begin_match(struct StartMeleeData* start);
 void pc_desktop_match_loaded(void);
