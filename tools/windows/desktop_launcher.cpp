@@ -19,7 +19,7 @@
 namespace {
 constexpr wchar_t kClass[] = L"DesktopMeleeLauncher_v1";
 constexpr int kBaseWidth = 700;
-constexpr int kBaseHeight = 660;
+constexpr int kBaseHeight = 690;
 constexpr UINT_PTR kMatchTimer = 1;
 constexpr UINT_PTR kUpdateTimer = 2;
 #define DESKTOP_WIDEN_INNER(value) L##value
@@ -30,7 +30,7 @@ enum : int {
     IdModeLabel, IdMode, IdP1Label, IdP1, IdP2Label, IdP2,
     IdCostume1Label, IdCostume1, IdCostume2Label, IdCostume2,
     IdLevelLabel, IdLevel, IdStocksLabel, IdStocks, IdUcf, IdWindows, IdWallpaper,
-    IdCountLabel, IdCount, IdMonitorLabel, IdMonitor, IdRefresh,
+    IdCountLabel, IdCount, IdMonitorLabel, IdMonitor, IdRefresh, IdAllMonitors,
     IdP3Label, IdP3, IdP4Label, IdP4, IdCostume3, IdCostume4,
     IdControl1, IdControl2, IdControl3, IdControl4,
     IdCharacterHeader, IdCostumeHeader, IdControlHeader,
@@ -256,24 +256,25 @@ void layout() {
     place(IdTitle,28,14,640,36); place(IdSubtitle,30,54,640,22);
     place(IdDiscLabel,30,82,640,20); place(IdDisc,30,104,522,28); place(IdBrowse,562,103,108,30);
     place(IdMonitorLabel,30,144,90,22); place(IdMonitor,125,140,430,300); place(IdRefresh,565,139,105,30);
-    place(IdModeLabel,30,183,175,22); place(IdMode,210,179,460,160);
-    place(IdCountLabel,30,219,90,22); place(IdCount,125,215,80,160);
-    place(IdLevelLabel,365,219,100,22); place(IdLevel,467,215,96,240);
-    place(IdCharacterHeader,80,248,220,22); place(IdCostumeHeader,310,248,140,22);
-    place(IdControlHeader,460,248,210,22);
+    place(IdAllMonitors,125,173,300,24);
+    place(IdModeLabel,30,210,175,22); place(IdMode,210,206,460,160);
+    place(IdCountLabel,30,246,90,22); place(IdCount,125,242,80,160);
+    place(IdLevelLabel,365,246,100,22); place(IdLevel,467,242,96,240);
+    place(IdCharacterHeader,80,275,220,22); place(IdCostumeHeader,310,275,140,22);
+    place(IdControlHeader,460,275,210,22);
     for (int i=0;i<4;++i) {
-        const int y=273+i*35;
+        const int y=300+i*35;
         place(slot_labels[i],30,y+3,45,22);
         place(character_controls[i],80,y,220,320);
         place(costume_controls[i],310,y,140,220);
         place(input_controls[i],460,y,210,220);
     }
-    place(IdStocksLabel,30,417,100,22); place(IdStocks,132,413,96,240);
-    place(IdUcf,365,414,305,24);
-    place(IdWindows,30,450,325,24); place(IdWallpaper,365,450,305,24);
-    place(IdInstructions,30,487,640,40); place(IdStatus,30,532,640,36);
-    place(IdLogs,30,574,140,34); place(IdStop,365,574,130,34); place(IdStart,505,572,165,38);
-    place(IdUpdateStatus,30,621,465,35); place(IdUpdate,510,619,160,34);
+    place(IdStocksLabel,30,444,100,22); place(IdStocks,132,440,96,240);
+    place(IdUcf,365,441,305,24);
+    place(IdWindows,30,477,325,24); place(IdWallpaper,365,477,305,24);
+    place(IdInstructions,30,514,640,40); place(IdStatus,30,559,640,36);
+    place(IdLogs,30,601,140,34); place(IdStop,365,601,130,34); place(IdStart,505,599,165,38);
+    place(IdUpdateStatus,30,648,465,35); place(IdUpdate,510,646,160,34);
 }
 
 void set_fonts() {
@@ -316,6 +317,7 @@ int fighter_index(int id) {
 }
 int fighter_id(int control) { return fighters[selection(control)].id; }
 int roster_count() { return selection(IdCount)+2; }
+bool all_monitors() { return SendMessageW(child(IdAllMonitors),BM_GETCHECK,0,0)==BST_CHECKED; }
 
 std::wstring chosen_monitor_id() {
     const int index=selection(IdMonitor);
@@ -359,8 +361,12 @@ void update_mode(bool preset=true) {
             EnableWindow(child(id),editable && active);
         if (active && selection(input_controls[i])==0) cpu=true;
     }
-    for (int id : {IdMode,IdCount,IdMonitor,IdRefresh,IdStocks,IdDisc,IdBrowse,IdUcf,IdWindows,IdWallpaper})
+    const bool span=all_monitors();
+    for (int id : {IdMode,IdCount,IdStocks,IdDisc,IdBrowse,IdUcf,IdWindows,IdAllMonitors})
         EnableWindow(child(id),editable);
+    EnableWindow(child(IdMonitor),editable && !span);
+    EnableWindow(child(IdRefresh),editable && !span);
+    EnableWindow(child(IdWallpaper),editable && !span);
     EnableWindow(child(IdLevel),editable && cpu);
 }
 
@@ -375,6 +381,7 @@ void make_form() {
     make(IdMonitorLabel,L"STATIC",L"Display");
     make(IdMonitor,L"COMBOBOX",L"",WS_TABSTOP|CBS_DROPDOWNLIST|WS_VSCROLL);
     make(IdRefresh,L"BUTTON",L"Refresh",WS_TABSTOP|BS_PUSHBUTTON);
+    make(IdAllMonitors,L"BUTTON",L"Span match across all monitors",WS_TABSTOP|BS_AUTOCHECKBOX);
     make(IdModeLabel,L"STATIC",L"Match preset");
     make(IdMode,L"COMBOBOX",L"",WS_TABSTOP|CBS_DROPDOWNLIST|WS_VSCROLL);
     item(IdMode,L"Player 1 vs. CPUs"); item(IdMode,L"Watch CPUs");
@@ -403,7 +410,7 @@ void make_form() {
     make(IdUcf,L"BUTTON",L"Enable UCF controller fixes",WS_TABSTOP|BS_AUTOCHECKBOX);
     make(IdWindows,L"BUTTON",L"Use open window tops as platforms",WS_TABSTOP|BS_AUTOCHECKBOX);
     make(IdWallpaper,L"BUTTON",L"Wallpaper terrain (experimental)",WS_TABSTOP|BS_AUTOCHECKBOX);
-    make(IdInstructions,L"STATIC",L"Play on the selected display. Stop the match before changing its setup.\nCtrl+Shift+F10: pause / settings     Ctrl+Shift+F11: quit");
+    make(IdInstructions,L"STATIC",L"Choose one display or span all monitors. Stop the match before changing setup.\nCtrl+Shift+F10: pause / settings     Ctrl+Shift+F11: quit");
     make(IdStatus,L"STATIC",L"Choose 2-4 fighters. Each human needs a different controller port.");
     make(IdLogs,L"BUTTON",L"Open game folder",WS_TABSTOP|BS_PUSHBUTTON);
     make(IdStop,L"BUTTON",L"Stop match",WS_TABSTOP|BS_PUSHBUTTON);
@@ -429,6 +436,7 @@ void make_form() {
     SendMessageW(child(IdUcf),BM_SETCHECK,config_int(L"UCF",1,0,1)?BST_CHECKED:BST_UNCHECKED,0);
     SendMessageW(child(IdWindows),BM_SETCHECK,config_int(L"WindowPlatforms",1,0,1)?BST_CHECKED:BST_UNCHECKED,0);
     SendMessageW(child(IdWallpaper),BM_SETCHECK,config_int(L"WallpaperPlatforms",0,0,1)?BST_CHECKED:BST_UNCHECKED,0);
+    SendMessageW(child(IdAllMonitors),BM_SETCHECK,config_int(L"AllMonitors",0,0,1)?BST_CHECKED:BST_UNCHECKED,0);
     wchar_t monitor[1024]{};
     GetPrivateProfileStringW(L"Match",L"Monitor",L"",monitor,1024,app.config.c_str());
     refresh_monitors(monitor);
@@ -494,17 +502,23 @@ void start() {
         if (port) used|=1<<port;
     }
     const auto monitor=chosen_monitor_id();
+    const bool span=all_monitors();
     AuroraDesktopGeometry geometry{};
-    if (!aurora::desktop::monitors::geometry(monitor,geometry)) {
-        status(L"Selected display is unavailable. Click Refresh and choose a connected display."); return;
+    const bool geometry_ok=span ? aurora::desktop::monitors::geometry_all(geometry)
+                                : aurora::desktop::monitors::geometry(monitor,geometry);
+    if (!geometry_ok) {
+        status(span ? L"All-monitor arena unavailable. Displays must share a horizontal band."
+                    : L"Selected display is unavailable. Click Refresh and choose a connected display.");
+        return;
     }
     const int mode=selection(IdMode), level=selection(IdLevel)+1, stocks=selection(IdStocks)+1;
     const int ucf=SendMessageW(child(IdUcf),BM_GETCHECK,0,0)==BST_CHECKED;
     const int windows=SendMessageW(child(IdWindows),BM_GETCHECK,0,0)==BST_CHECKED;
-    const int wallpaper=SendMessageW(child(IdWallpaper),BM_GETCHECK,0,0)==BST_CHECKED;
+    const int wallpaper=!span && SendMessageW(child(IdWallpaper),BM_GETCHECK,0,0)==BST_CHECKED;
     if (app.settings_writable) {
         WritePrivateProfileStringW(L"Match",L"Disc",disc.c_str(),app.config.c_str());
         WritePrivateProfileStringW(L"Match",L"Monitor",monitor.c_str(),app.config.c_str());
+        save_int(L"AllMonitors",span?1:0);
         save_int(L"Mode",mode); save_int(L"FighterCount",count);
         save_int(L"CPU",level); save_int(L"Stocks",stocks); save_int(L"UCF",ucf);
         save_int(L"WindowPlatforms",windows); save_int(L"WallpaperPlatforms",wallpaper);
@@ -525,7 +539,8 @@ void start() {
     env(L"MELEE_DESKTOP_CPU",level); env(L"MELEE_DESKTOP_WATCH",used?0:1);
     env(L"MELEE_DESKTOP_STOCKS",stocks); env(L"MELEE_DESKTOP_WINDOWS",windows);
     env(L"MELEE_DESKTOP_WALLPAPER",wallpaper); env(L"MELEE_UCF",ucf);
-    SetEnvironmentVariableW(L"MELEE_DESKTOP_MONITOR",monitor.empty()?nullptr:monitor.c_str());
+    env(L"MELEE_DESKTOP_ALL_MONITORS",span?1:0);
+    SetEnvironmentVariableW(L"MELEE_DESKTOP_MONITOR",span?nullptr:(monitor.empty()?nullptr:monitor.c_str()));
     SetEnvironmentVariableW(L"MELEE_BOOT_SCENE",L"vs");
     SetEnvironmentVariableW(L"MELEE_WINDOW_TITLE",L"Desktop Melee - Windows " DESKTOP_WIDEN(DESKTOP_MELEE_VERSION));
     SetEnvironmentVariableW(L"MELEE_LOG_FILE",(app.folder/L"desktop-melee.log").c_str());
@@ -540,7 +555,8 @@ void start() {
     }
     CloseHandle(process.hThread); app.process=process.hProcess; app.process_id=process.dwProcessId;
     EnableWindow(child(IdStart),FALSE); EnableWindow(child(IdStop),TRUE); update_mode(false);
-    status(L"Match running on the selected display. Ctrl+Shift+F10 opens settings.");
+    status(span ? L"Match spanning all monitors. Ctrl+Shift+F10 opens settings."
+                : L"Match running on the selected display. Ctrl+Shift+F10 opens settings.");
     SetTimer(app.window,kMatchTimer,500,nullptr); ShowWindow(app.window,SW_MINIMIZE);
 }
 
@@ -579,6 +595,14 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpar
         case IdCount: if (HIWORD(wparam)==CBN_SELCHANGE) update_mode(); break;
         case IdControl1: case IdControl2: case IdControl3: case IdControl4:
             if (HIWORD(wparam)==CBN_SELCHANGE) { select(IdMode,3); update_mode(false); } break;
+        case IdAllMonitors:
+            if (HIWORD(wparam)==BN_CLICKED) {
+                update_mode(false);
+                status(all_monitors()
+                    ? L"All monitors selected. Wallpaper terrain is disabled in span mode."
+                    : L"Single-display mode restored.");
+            }
+            break;
         case IdRefresh: refresh_monitors(chosen_monitor_id()); break;
         case IdLogs: ShellExecuteW(hwnd, L"open", app.folder.c_str(), nullptr, nullptr, SW_SHOWNORMAL); break;
         }
