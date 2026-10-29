@@ -87,7 +87,7 @@ public final class OverlayService extends Service {
         PendingIntent settings = PendingIntent.getActivity(this, 3, new Intent(this, MainActivity.class), immutable);
         return new Notification.Builder(this, CHANNEL).setSmallIcon(android.R.drawable.ic_media_play)
             .setContentTitle("Desktop Melee / overlay TEST")
-            .setContentText(watch ? "Placeholder animation. Tap Stop to end." : "Controller test active. Home-screen touch is captured.")
+            .setContentText(watch ? "Four-CPU placeholder animation. Tap Stop to end." : "P1 + three CPU placeholders. Home-screen touch is captured.")
             .setContentIntent(settings).setOngoing(true).setOnlyAlertOnce(true)
             .addAction(new Notification.Action.Builder(null, "Stop", stop).build())
             .addAction(new Notification.Action.Builder(null, "Watch", observe).build()).build();
