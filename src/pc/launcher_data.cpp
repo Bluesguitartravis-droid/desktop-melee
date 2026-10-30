@@ -354,10 +354,10 @@ Preferences load_preferences(const std::filesystem::path& path) {
             int value;
             if (row >> value && value >= 0 && value <= 2)
                 prefs.widescreen = value;
-        } else if (key == "mute" || key == "fps") {
+        } else if (key == "mute" || key == "fps" || key == "hud_visible") {
             int value;
             if (row >> value && (value == 0 || value == 1))
-                (key == "mute" ? prefs.mute : prefs.fps) = value;
+                if (key == "mute") prefs.mute = value; else if (key == "fps") prefs.fps = value; else prefs.hud_visible = value;
         } else if (key == "render_scale" || key == "volume") {
             float value;
             if (row >> value && std::isfinite(value) && value >= 0 &&
@@ -448,7 +448,7 @@ bool save_preferences(
          << "render_scale " << prefs.render_scale << "\nvolume " << prefs.volume << "\nmsaa "
          << prefs.msaa << "\nanisotropy " << prefs.anisotropy << "\nwidescreen " << prefs.widescreen
          << "\nmute " << prefs.mute << "\nfps " << prefs.fps << "\nfilter_mode "
-         << prefs.filter_mode << "\nbackend " << prefs.backend << "\ncheck_updates "
+         << prefs.filter_mode << "\nbackend " << prefs.backend << "\nhud_visible " << prefs.hud_visible << "\ncheck_updates "
          << prefs.check_updates << "\ncustom_textures " << prefs.custom_textures << "\nunlock_all "
          << prefs.unlock_all << "\nhud_mode " << prefs.hud_mode << "\nfrozen_stadium "
          << prefs.frozen_stadium << "\nfree_camera " << prefs.free_camera << "\nucf " << prefs.ucf
