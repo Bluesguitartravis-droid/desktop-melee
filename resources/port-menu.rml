@@ -73,6 +73,7 @@
               </span>
               <button id="hud-mode" class="value">Classic (4:3)</button>
             </div>
+            <div class="row no-mobile" data-desc="Fighter display size in the next desktop match. Collision stays unchanged."><span class="name">Fighter size</span><div class="slider-control"><input type="range" class="range" id="fighter-scale" min="50" max="150" step="5" value="100" /><span id="fighter-scale-val" class="slider-value">100%</span></div></div>
             <div class="row" data-desc="Anti-aliasing RESTART">
               <span class="name">Anti-aliasing <span class="badge">RESTART</span>
               </span>
@@ -163,7 +164,7 @@
               <span class="name">UI scale<span class="detail">Scale launcher and overlay elements.</span>
               </span>
               <div class="slider-control">
-                <input type="range" id="scale" min="75" max="150" step="25" value="100" class="range" />
+                <input type="range" id="scale" min="50" max="150" step="10" value="80" class="range" />
                 <span id="scale-val" class="slider-value">100%</span>
               </div>
             </div>
