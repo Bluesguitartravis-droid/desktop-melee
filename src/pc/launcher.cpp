@@ -599,7 +599,7 @@ class Launcher final : public Rml::EventListener {
         slider("fighter-scale", prefs.fighter_scale * 100.0f);
         text("fighter-scale-val", std::to_string(int(prefs.fighter_scale * 100 + 0.5f)) + "%");
         slider("fighter-scale", prefs.fighter_scale * 100.0f);
-        label("fighter-scale-val", std::to_string(int(prefs.fighter_scale * 100 + 0.5f)) + "%");
+        text("fighter-scale-val", std::to_string(int(prefs.fighter_scale * 100 + 0.5f)) + "%");
         slider("scale", prefs.scale * 100.0f);
         text("scale-val", std::to_string(int(prefs.scale * 100 + 0.5f)) + "%");
         text("check-updates", prefs.check_updates ? "On" : "Off");
