@@ -598,6 +598,8 @@ class Launcher final : public Rml::EventListener {
         text("fps", prefs.fps ? "On" : "Off");
         slider("fighter-scale", prefs.fighter_scale * 100.0f);
         text("fighter-scale-val", std::to_string(int(prefs.fighter_scale * 100 + 0.5f)) + "%");
+        slider("fighter-scale", prefs.fighter_scale * 100.0f);
+        label("fighter-scale-val", std::to_string(int(prefs.fighter_scale * 100 + 0.5f)) + "%");
         slider("scale", prefs.scale * 100.0f);
         text("scale-val", std::to_string(int(prefs.scale * 100 + 0.5f)) + "%");
         text("check-updates", prefs.check_updates ? "On" : "Off");
@@ -1499,7 +1501,7 @@ public:
         return index_of(tab_ids, id) >= 0 || id == "resume" || id == "quit-game";
     }
     static bool is_slider(const Rml::String& id) {
-        return id == "volume" || id == "resolution" || id == "scale" || id == "music-volume" ||
+        return id == "volume" || id == "resolution" || id == "scale" || id == "fighter-scale" || id == "music-volume" ||
                id == "sfx-volume";
     }
     void label(const char* id, const std::string& value) {
@@ -1517,7 +1519,7 @@ public:
     std::vector<std::string> page_focus() const {
         switch (tab) {
         case 0:
-            return {"display", "sync", "resolution", "aspect", "hud-mode", "aa", "filter",
+            return {"display", "sync", "resolution", "aspect", "hud-mode", "fighter-scale", "aa", "filter",
                 "filter-mode", "custom-textures", "backend"};
         case 1:
             return {"volume", "music-volume", "sfx-volume", "mute", "reverb", "fps", "scale",
@@ -2021,8 +2023,10 @@ public:
             prefs.reverb = !prefs.reverb;
         else if (id == "fps")
             prefs.fps = !prefs.fps;
-        else if (id == "scale") {
-            prefs.scale = prefs.scale >= 1.5f ? 0.75f : prefs.scale + 0.25f;
+        else if (id == "fighter-scale") {
+            prefs.fighter_scale = prefs.fighter_scale >= 1.5f ? 0.5f : prefs.fighter_scale + 0.1f;
+        } else if (id == "scale") {
+            prefs.scale = prefs.scale >= 1.5f ? 0.5f : prefs.scale + 0.1f;
             aurora::rmlui::set_ui_scale(prefs.scale);
         } else if (id == "port-check-update") {
             pc::updater::check_for_updates_async(true);
@@ -2049,8 +2053,10 @@ public:
         else if (id == "resolution") {
             prefs.render_scale = std::clamp(float(int(value + 0.5f)), 0.0f, 10.0f);
             resize_pending = true;
+        } else if (id == "fighter-scale") {
+            prefs.fighter_scale = std::clamp(value / 100.0f, 0.5f, 1.5f);
         } else if (id == "scale") {
-            prefs.scale = std::clamp(value / 100.0f, 0.75f, 1.5f);
+            prefs.scale = std::clamp(value / 100.0f, 0.5f, 1.5f);
             aurora::rmlui::set_ui_scale(prefs.scale);
         } else
             return;
@@ -2086,8 +2092,10 @@ public:
         else if (id == "resolution") {
             prefs.render_scale = std::clamp(prefs.render_scale + direction, 0.0f, 10.0f);
             resize_pending = true;
+        } else if (id == "fighter-scale") {
+            prefs.fighter_scale = std::clamp(prefs.fighter_scale + direction * 0.05f, 0.5f, 1.5f);
         } else if (id == "scale") {
-            prefs.scale = std::clamp(prefs.scale + direction * 0.25f, 0.75f, 1.5f);
+            prefs.scale = std::clamp(prefs.scale + direction * 0.1f, 0.5f, 1.5f);
             aurora::rmlui::set_ui_scale(prefs.scale);
         } else {
             if (direction < 0)
