@@ -283,6 +283,39 @@ static void test_native_release_sweep_from_thrower(void)
     puts("PASS native throw-release sweep restores a below-floor animation origin");
 }
 
+static void test_missed_taskbar_crossing_recovery(void)
+{
+    begin_taskbar_fixture();
+    /* Simulate the real callback failing to register a downward crossing.
+     * Recovery should use only the active authored floor, never a fake ledge. */
+    reset_fighters(70.0f, 2.0f, -20.0f);
+    victim.coll_cb = empty_throw_collision;
+    check_pipeline();
+    CHECK(map_calls == 1 && ko_checks == 0);
+    CHECK(victim.ground_or_air == GA_Ground);
+    near_value(victim.cur_pos.y, 0.0f);
+    CHECK(victim.coll_data.floor.index == 0);
+
+    /* Intentional platform drop and falling outside the physical edge
+     * must still trigger normal bottom KO. */
+    reset_fighters(70.0f, 2.0f, -20.0f);
+    victim.coll_cb = empty_throw_collision;
+    victim.coll_data.floor_skip = 0;
+    check_pipeline();
+    CHECK(ko_checks == 1);
+
+    reset_fighters(210.0f, 2.0f, -20.0f);
+    victim.coll_cb = empty_throw_collision;
+    check_pipeline();
+    CHECK(ko_checks == 1);
+
+    reset_fighters(70.0f, -4.0f, -20.0f);
+    victim.coll_cb = empty_throw_collision;
+    check_pipeline();
+    CHECK(ko_checks == 1);
+    puts("PASS missed taskbar crossings recover; drop-through and offstage remain valid");
+}
+
 static void test_other_boundaries_and_ordinary_stage(void)
 {
     reset_fighters(Stage_GetBlastZoneRightOffset() + 1.0f, 1.0f, -20.0f);
@@ -316,6 +349,7 @@ int main(void)
     test_attached_throw_and_immediate_release();
     test_attached_throw_requires_real_support();
     test_native_release_sweep_from_thrower();
+    test_missed_taskbar_crossing_recovery();
     test_other_boundaries_and_ordinary_stage();
     for (size_t i = 0; i < allocation_count; ++i) {
         free(allocations[i]);
