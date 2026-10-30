@@ -361,6 +361,9 @@ public class MeleeActivity extends SDLActivity {
         } else {
             setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR);
         }
+        com.desktopmelee.android.OverlayDiagnostics.record(this,
+            "Game Activity created: overlay=" + mDesktopOverlay +
+            " watch=" + mDesktopWatch + " orientation=" + orientationMode);
         super.onCreate(savedInstanceState);
         applyDesktopWindowMode();
         if (mBrokenLibraries) {
@@ -416,9 +419,15 @@ public class MeleeActivity extends SDLActivity {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
+                mLauncherActive = active;
+                com.desktopmelee.android.OverlayDiagnostics.record(MeleeActivity.this,
+                    "Native launcher active=" + active + " overlayAttached=" + mSystemOverlayAttached);
                 if (mTouchOverlay != null) {
                     mTouchOverlay.setLauncherActive(active);
                 }
+                applyDesktopWindowMode();
+                updateOverlayState();
+                if (!active) sendMatchBehindHome();
             }
         });
     }
@@ -450,6 +459,8 @@ public class MeleeActivity extends SDLActivity {
 
     @Override
     protected void onDestroy() {
+        com.desktopmelee.android.OverlayDiagnostics.record(this,
+            "Game Activity onDestroy; finishing=" + isFinishing());
         detachSystemOverlay();
         try {
             nativeDisconnect();
@@ -459,8 +470,15 @@ public class MeleeActivity extends SDLActivity {
 
     @Override
     protected void onPause() {
+        com.desktopmelee.android.OverlayDiagnostics.record(this,
+            "Game Activity onPause; launcher=" + mLauncherActive);
+        if (mSystemOverlayAttached && mLauncherActive) {
+            // Android's disc picker must remain touchable and unobscured.
+            mOverlayHiddenForPicker = true;
+            updateOverlayState();
+        }
         super.onPause();
-        if (mSystemOverlayAttached) {
+        if (mSystemOverlayAttached && !mLauncherActive) {
             try {
                 if (mHIDDeviceManager != null) {
                     mHIDDeviceManager.setFrozen(false);
@@ -473,6 +491,12 @@ public class MeleeActivity extends SDLActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        com.desktopmelee.android.OverlayDiagnostics.record(this,
+            "Game Activity onResume; launcher=" + mLauncherActive);
+        if (mOverlayHiddenForPicker) {
+            mOverlayHiddenForPicker = false;
+            updateOverlayState();
+        }
         applyDesktopWindowMode();
         applyImmersiveMode();
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
