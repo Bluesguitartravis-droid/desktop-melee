@@ -26,6 +26,15 @@ public final class DesktopMeleeActivity extends Activity {
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        OverlayDiagnostics.record(this, "Setup opened after app startup");
+        final android.content.Context appContext = getApplicationContext();
+        final Thread.UncaughtExceptionHandler defaultHandler =
+            Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
+            OverlayDiagnostics.record(appContext, "Uncaught Java error on " +
+                thread.getName() + ": " + android.util.Log.getStackTraceString(error));
+            if (defaultHandler != null) defaultHandler.uncaughtException(thread, error);
+        });
 
         ScrollView scroll = new ScrollView(this);
         LinearLayout root = new LinearLayout(this);
@@ -57,7 +66,7 @@ public final class DesktopMeleeActivity extends Activity {
         homeOverlay.setText("Home-screen overlay (transparent)");
         homeOverlay.setChecked(prefs.getBoolean("homeOverlay", true));
         root.addView(homeOverlay);
-        root.addView(text("Turn this off to use normal foreground rendering if your Android/Vulkan compositor has trouble with transparency.", 13));
+        root.addView(text("The disc picker stays foreground. During gameplay, the red STOP OVERLAY control closes a stuck overlay without restarting the device.", 13));
 
         root.addView(text("Updates", 18));
         autoUpdates = new CheckBox(this);
@@ -71,6 +80,30 @@ public final class DesktopMeleeActivity extends Activity {
         Button checkUpdate = new Button(this);
         checkUpdate.setText("Check for updates now");
         root.addView(checkUpdate);
+
+        Button copyReport = new Button(this);
+        copyReport.setText("Copy overlay / crash diagnostics");
+        root.addView(copyReport);
+        root.addView(text("After a failed overlay test, reopen this screen, tap Copy, and paste the text into ChatGPT. The app preserves recent event history across restarts.", 13));
+        copyReport.setOnClickListener(v -> {
+            copyReport.setEnabled(false);
+            new Thread(() -> {
+                String report = OverlayDiagnostics.report(getApplicationContext());
+                runOnUiThread(() -> {
+                    android.content.ClipboardManager clipboard =
+                        (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                    if (clipboard != null) {
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText(
+                            "Desktop Melee diagnostics", report));
+                        Toast.makeText(this, "Diagnostics copied to clipboard.",
+                            Toast.LENGTH_LONG).show();
+                    } else {
+                        Toast.makeText(this, "Clipboard unavailable.", Toast.LENGTH_LONG).show();
+                    }
+                    copyReport.setEnabled(true);
+                });
+            }, "melee-copy-report").start();
+        });
 
         root.addView(text("Match", 18));
         players = spinner(root, "Fighters", new String[]{"2","3","4"}, prefs.getInt("players",2)-2);
@@ -151,6 +184,9 @@ public final class DesktopMeleeActivity extends Activity {
         int watch = mode.getSelectedItemPosition();
         int cpuLevel = cpu.getSelectedItemPosition()+1;
         int stockCount = stocks.getSelectedItemPosition()+1;
+        OverlayDiagnostics.record(this, "Start pressed: overlay=" + homeOverlay.isChecked() +
+            ", watch=" + (watch == 1) + ", fighters=" + fighterCount +
+            ", orientation=" + orientationMode);
         prefs.edit()
             .putInt("orientation",orientationMode)
             .putInt("landscapeMargin",landscapeMargin.getProgress())
@@ -174,9 +210,8 @@ public final class DesktopMeleeActivity extends Activity {
         args.add("--desktop-stocks"); args.add(Integer.toString(stockCount));
         i.putExtra("args", args.toArray(new String[0]));
         /*
-         * Finish the opaque setup activity after starting the translucent game
-         * activity. With the setup task gone, Android can composite the Home
-         * screen underneath the game surface.
+         * Finish setup after launching native Melee; the disc picker remains
+         * foreground until Play starts, then the game may overlay Home.
          */
         i.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
         startActivity(i);
