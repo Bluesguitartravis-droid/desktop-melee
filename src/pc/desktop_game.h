@@ -17,6 +17,7 @@ struct CameraTransformState;
 bool pc_desktop_requested(void);
 bool pc_desktop_match_active(void);
 int pc_desktop_player_count(void);
+float pc_desktop_character_scale(void);
 void pc_desktop_configure_match(struct StartMeleeData* start);
 void pc_desktop_begin_match(struct StartMeleeData* start);
 void pc_desktop_match_loaded(void);
