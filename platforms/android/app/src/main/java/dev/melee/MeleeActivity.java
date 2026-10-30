@@ -102,6 +102,9 @@ public class MeleeActivity extends SDLActivity {
     private boolean mFullscreen = true;
     private boolean mDesktopOverlay;
     private boolean mDesktopWatch;
+    // Android 12+ requires a dimmed full-screen untrusted overlay for touch-through.
+    // Default to fully solid fighters; optional tap-through mode is visibly dimmer.
+    private boolean mWatchTouchPassthrough;
     private android.view.WindowManager mOverlayWindowManager;
     private android.view.View mOverlayRoot;
     private boolean mSystemOverlayAttached;
@@ -156,21 +159,9 @@ public class MeleeActivity extends SDLActivity {
                     android.graphics.PixelFormat.TRANSLUCENT);
             lp.gravity = android.view.Gravity.TOP | android.view.Gravity.START;
             lp.softInputMode = android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING;
-            if (mDesktopWatch && !mLauncherActive) {
-                float safeAlpha = 0.70f;
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                    android.hardware.input.InputManager input =
-                        (android.hardware.input.InputManager) getSystemService(
-                            android.content.Context.INPUT_SERVICE);
-                    if (input != null) {
-                        safeAlpha = Math.min(safeAlpha,
-                            input.getMaximumObscuringOpacityForTouch() * 0.90f);
-                    }
-                }
-                lp.alpha = safeAlpha;
-            } else {
-                lp.alpha = 1.0f;
-            }
+            // Per-pixel alpha comes from Vulkan; lowering window alpha ghosts fighters.
+            lp.alpha = mDesktopWatch && !mLauncherActive && mWatchTouchPassthrough
+                ? watchTouchAlpha() : 1.0f;
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
                 lp.layoutInDisplayCutoutMode =
                     android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
@@ -270,7 +261,8 @@ public class MeleeActivity extends SDLActivity {
         }
         mOverlayParams.flags = baseFlags;
         mOverlayParams.alpha = mOverlayHiddenForPicker ? 0f :
-            (mDesktopWatch && !mLauncherActive ? 0.70f : 1f);
+            (mDesktopWatch && !mLauncherActive && mWatchTouchPassthrough
+                ? watchTouchAlpha() : 1.0f);
         if (mStopControl != null)
             mStopControl.setVisibility(mOverlayHiddenForPicker ?
                 android.view.View.GONE : android.view.View.VISIBLE);
@@ -284,6 +276,19 @@ public class MeleeActivity extends SDLActivity {
             com.desktopmelee.android.OverlayDiagnostics.record(this,
                 "Overlay window update failed: " + android.util.Log.getStackTraceString(t));
         }
+    }
+
+    private float watchTouchAlpha() {
+        float safe = 0.70f;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            android.hardware.input.InputManager input =
+                (android.hardware.input.InputManager) getSystemService(
+                    android.content.Context.INPUT_SERVICE);
+            if (input != null) {
+                safe = Math.min(safe, input.getMaximumObscuringOpacityForTouch() * 0.9f);
+            }
+        }
+        return safe;
     }
 
     private void sendMatchBehindHome() {
@@ -352,6 +357,9 @@ public class MeleeActivity extends SDLActivity {
             com.desktopmelee.android.DesktopMeleeActivity.EXTRA_OVERLAY, false);
         mDesktopWatch = intent != null && intent.getBooleanExtra(
             com.desktopmelee.android.DesktopMeleeActivity.EXTRA_WATCH, false);
+        mWatchTouchPassthrough = getSharedPreferences(
+            com.desktopmelee.android.DesktopMeleeActivity.PREFS, MODE_PRIVATE)
+            .getBoolean("watchTouchPass", false);
         int orientationMode = intent != null ? intent.getIntExtra(
             com.desktopmelee.android.DesktopMeleeActivity.EXTRA_ORIENTATION, 0) : 0;
         if (orientationMode == 1) {
@@ -597,19 +605,33 @@ public class MeleeActivity extends SDLActivity {
             getWindowManager().getDefaultDisplay().getRealMetrics(dm);
             bounds = new android.graphics.Rect(0, 0, dm.widthPixels, dm.heightPixels);
         }
-        final int width = Math.max(1, bounds.width());
-        final int height = Math.max(1, bounds.height());
+        int width = Math.max(1, bounds.width());
+        int height = Math.max(1, bounds.height());
+        // Align arena coordinates to the real native Vulkan/SDL render surface.
+        // Window metrics may include navigation insets that the surface omits.
+        if (mSurface != null && mSurface.getHolder() != null) {
+            android.graphics.Rect frame = mSurface.getHolder().getSurfaceFrame();
+            if (frame != null && frame.width() > 0 && frame.height() > 0) {
+                width = frame.width();
+                height = frame.height();
+            }
+        }
         final boolean landscape = width >= height;
         android.content.SharedPreferences p =
             getSharedPreferences(com.desktopmelee.android.DesktopMeleeActivity.PREFS, MODE_PRIVATE);
         int marginPct = p.getInt(landscape ? "landscapeMargin" : "portraitMargin", landscape ? 3 : 6);
-        int floorPct = p.getInt(landscape ? "landscapeFloor" : "portraitFloor", landscape ? 88 : 82);
+        int floorPct = p.getInt(landscape ? "landscapeFloor" : "portraitFloor", 93);
         marginPct = Math.max(0, Math.min(25, marginPct));
         floorPct = Math.max(50, Math.min(98, floorPct));
         int margin = Math.round(width * (marginPct / 100.0f));
         int floor = Math.round(height * (floorPct / 100.0f));
         floor = Math.max(1, Math.min(height - 1, floor));
         int right = Math.max(margin + 1, width - margin);
+        com.desktopmelee.android.OverlayDiagnostics.record(this,
+            "Arena geometry from SDL surface: " + width + "x" + height +
+            " landscape=" + landscape + " floorPct=" + floorPct +
+            " floorY=" + floor + " marginPx=" + margin +
+            " watch=" + mDesktopWatch + " touchPass=" + mWatchTouchPassthrough);
         return new int[] {0, 0, width, height, margin, floor, right, height};
     }
 
