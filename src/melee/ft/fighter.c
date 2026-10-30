@@ -94,6 +94,8 @@
 #include <sysdolphin/baselib/random.h>
 #ifdef TARGET_PC
 #include "pc/desktop_fighter.h"
+#include "pc/desktop_game.h"
+#include "pc/pc.h"
 #include "pc/slp.h"
 #endif
 
