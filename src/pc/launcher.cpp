@@ -42,9 +42,9 @@ launcher::Preferences prefs;
 std::filesystem::path config_path;
 
 void sync_desktop_character_size() {
+    /* Kept for compatibility with diagnostics and older launch paths; the
+     * game now reads prefs directly through pc_get_character_scale(). */
 #if defined(_WIN32)
-    /* Applied to the fighter model root at render/update time. Collision,
-     * movement, blast zones and platform geometry remain unchanged. */
     SDL_setenv_unsafe("MELEE_DESKTOP_CHARACTER_SIZE",
         std::to_string(int(prefs.fighter_scale * 100.0f + 0.5f)).c_str(), 1);
 #endif
@@ -2424,6 +2424,9 @@ extern "C" int pc_get_hud_mode(void) {
 }
 extern "C" float pc_get_hud_scale(void) {
     return prefs.hud_scale;
+}
+extern "C" float pc_get_character_scale(void) {
+    return prefs.fighter_scale;
 }
 extern "C" float pc_get_music_volume(void) {
     return prefs.music_volume;
