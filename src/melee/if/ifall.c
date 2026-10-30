@@ -207,7 +207,11 @@ bool ifAll_IsHUDHidden(void)
 
 static void fn_802F36B8(HSD_GObj* gobj, intptr_t unused)
 {
-    if (!ifAll_IsHUDHidden()) {
+    if (!ifAll_IsHUDHidden()
+#ifdef TARGET_PC
+        && (!pc_desktop_requested() || pc_is_hud_visible())
+#endif
+    ) {
 #ifdef TARGET_PC
         ifAll_ApplyPCHudScale(GET_COBJ(gobj));
 #endif
