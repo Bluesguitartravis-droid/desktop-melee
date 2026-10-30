@@ -94,7 +94,6 @@
 #include <sysdolphin/baselib/random.h>
 #ifdef TARGET_PC
 #include "pc/desktop_fighter.h"
-#include "pc/desktop_game.h"
 #include "pc/slp.h"
 #endif
 
@@ -226,7 +225,12 @@ void Fighter_UpdateModelScale(Fighter_GObj* gobj)
     float modelScale = ftCommon_GetModelScale(fp);
     float visualScale = 1.0f;
 #ifdef TARGET_PC
-    visualScale = pc_desktop_character_scale();
+    if (pc_desktop_requested()) {
+        visualScale = pc_get_character_scale();
+        if (!(visualScale >= 0.5f && visualScale <= 1.5f)) {
+            visualScale = 1.0f;
+        }
+    }
 #endif
 
     if (fp->x34_scale.z != 1.0f) {
