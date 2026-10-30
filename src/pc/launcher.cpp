@@ -368,7 +368,7 @@ class Launcher final : public Rml::EventListener {
     std::vector<std::string> page_focus() const {
         switch (tab) {
         case 0:
-            return {"display", "sync", "resolution", "aspect", "hud-mode", "fighter-scale", "hud-scale", "character-quality", "aa", "filter",
+            return {"display", "sync", "resolution", "aspect", "hud-visible", "hud-mode", "fighter-scale", "hud-scale", "character-quality", "aa", "filter",
                 "filter-mode", "fps", "custom-textures", "reload-textures", "backend", "performance"};
         case 1:
             return {"volume", "music-volume", "sfx-volume", "mute", "reverb"};
@@ -632,6 +632,7 @@ class Launcher final : public Rml::EventListener {
         text("character-quality", character_quality_name());
         text("custom-textures", hd_texture_status());
         text("hud-mode", prefs.hud_mode == 0 ? "Classic (4:3)" : "Wide (16:9)");
+        text("hud-visible", prefs.hud_visible ? "On" : "Off");
         text("frozen-stadium", prefs.frozen_stadium ? "Hazardless" : "Normal");
         text("free-camera", prefs.free_camera ? "Free" : "Normal");
         text("ucf", std::getenv("MELEE_UCF") ? "Environment override" : prefs.ucf ? "On" : "Off");
@@ -873,6 +874,11 @@ class Launcher final : public Rml::EventListener {
             save();
             refresh_settings();
             element("custom-textures")->Focus();
+        } else if (id == "hud-visible") {
+            prefs.hud_visible = !prefs.hud_visible;
+            save();
+            refresh_settings();
+            element("hud-visible")->Focus();
         } else if (id == "hud-mode") {
             prefs.hud_mode = (prefs.hud_mode + 1) % 2;
             save();
@@ -1590,7 +1596,7 @@ public:
     std::vector<std::string> page_focus() const {
         switch (tab) {
         case 0:
-            return {"display", "sync", "resolution", "aspect", "hud-mode", "fighter-scale", "hud-scale", "character-quality", "aa", "filter",
+            return {"display", "sync", "resolution", "aspect", "hud-visible", "hud-mode", "fighter-scale", "hud-scale", "character-quality", "aa", "filter",
                 "filter-mode", "custom-textures", "reload-textures", "backend"};
         case 1:
             return {"volume", "music-volume", "sfx-volume", "mute", "reverb", "fps", "scale",
@@ -1797,6 +1803,7 @@ public:
         label("character-quality", character_quality_name());
         label("custom-textures", hd_texture_status());
         label("hud-mode", prefs.hud_mode == 0 ? "Classic (4:3)" : "Wide (16:9)");
+        label("hud-visible", prefs.hud_visible ? "On" : "Off");
         label("frozen-stadium", prefs.frozen_stadium ? "Hazardless" : "Normal");
         label("free-camera", prefs.free_camera ? "Free" : "Normal");
         label("ucf", std::getenv("MELEE_UCF") ? "Environment override" : prefs.ucf ? "On" : "Off");
@@ -2074,6 +2081,8 @@ public:
         } else if (id == "custom-textures") {
             prefs.custom_textures = !prefs.custom_textures;
             pc_textures_reload();
+        } else if (id == "hud-visible") {
+            prefs.hud_visible = !prefs.hud_visible;
         } else if (id == "hud-mode") {
             prefs.hud_mode = (prefs.hud_mode + 1) % 2;
         } else if (id == "frozen-stadium") {
@@ -2488,6 +2497,9 @@ extern "C" bool pc_is_ucf_enabled(void) {
 }
 extern "C" int pc_get_hud_mode(void) {
     return prefs.hud_mode;
+}
+extern "C" bool pc_is_hud_visible(void) {
+    return prefs.hud_visible;
 }
 extern "C" float pc_get_hud_scale(void) {
     return prefs.hud_scale;
