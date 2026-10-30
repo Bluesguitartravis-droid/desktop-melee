@@ -215,9 +215,96 @@ public class MeleeActivity extends SDLActivity {
         }
     }
 
+    // This is a separate Android overlay window above the game surface. It still
+    // receives taps when Watch mode makes the game overlay non-touchable.
+    private void addEmergencyStopControl() {
+        android.widget.Button button = new android.widget.Button(this);
+        button.setText("STOP OVERLAY");
+        button.setAllCaps(false);
+        button.setTextSize(11f);
+        button.setTextColor(android.graphics.Color.WHITE);
+        button.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+            android.graphics.Color.rgb(165, 30, 30)));
+        button.setOnClickListener(v -> stopOverlayNow("STOP OVERLAY button"));
+        float density = getResources().getDisplayMetrics().density;
+        android.view.WindowManager.LayoutParams params =
+            new android.view.WindowManager.LayoutParams(
+                Math.round(130 * density), Math.round(48 * density),
+                android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
+                    android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL |
+                    android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                android.graphics.PixelFormat.TRANSLUCENT);
+        params.gravity = android.view.Gravity.TOP | android.view.Gravity.RIGHT;
+        params.x = Math.round(6 * density);
+        params.y = Math.round(12 * density);
+        mOverlayWindowManager.addView(button, params);
+        mStopControl = button;
+    }
+
+    private void stopOverlayNow(String reason) {
+        com.desktopmelee.android.OverlayDiagnostics.record(this, "STOP: " + reason);
+        // Remove both independent windows first, even if the SDL renderer is hung.
+        detachSystemOverlay();
+        finishAndRemoveTask();
+        android.os.Process.killProcess(android.os.Process.myPid());
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (mSystemOverlayAttached) stopOverlayNow("Back key");
+        else super.onBackPressed();
+    }
+
+    private void updateOverlayState() {
+        if (!mSystemOverlayAttached || mOverlayParams == null ||
+                mOverlayWindowManager == null) return;
+        mLayout.setBackgroundColor(mLauncherActive ? android.graphics.Color.BLACK :
+            android.graphics.Color.TRANSPARENT);
+        int baseFlags = mOverlayParams.flags &
+            ~(android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
+              android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
+        if (mOverlayHiddenForPicker || (mDesktopWatch && !mLauncherActive)) {
+            baseFlags |= android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
+                android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+        }
+        mOverlayParams.flags = baseFlags;
+        mOverlayParams.alpha = mOverlayHiddenForPicker ? 0f :
+            (mDesktopWatch && !mLauncherActive ? 0.70f : 1f);
+        if (mStopControl != null)
+            mStopControl.setVisibility(mOverlayHiddenForPicker ?
+                android.view.View.GONE : android.view.View.VISIBLE);
+        try {
+            mOverlayWindowManager.updateViewLayout(mOverlayRoot, mOverlayParams);
+            if (!mOverlayHiddenForPicker && (mLauncherActive || !mDesktopWatch)) {
+                mLayout.setFocusableInTouchMode(true);
+                mLayout.requestFocus();
+            }
+        } catch (Throwable t) {
+            com.desktopmelee.android.OverlayDiagnostics.record(this,
+                "Overlay window update failed: " + android.util.Log.getStackTraceString(t));
+        }
+    }
+
+    private void sendMatchBehindHome() {
+        if (mLayout == null) return;
+        mLayout.postDelayed(() -> {
+            if (mSystemOverlayAttached && !mLauncherActive && !isFinishing()) {
+                com.desktopmelee.android.OverlayDiagnostics.record(this,
+                    "Match started: moving task behind Home");
+                moveTaskToBack(true);
+            }
+        }, 400L);
+    }
+
     private void detachSystemOverlay() {
         if (!mSystemOverlayAttached || mOverlayWindowManager == null || mOverlayRoot == null) {
             return;
+        }
+        if (mStopControl != null) {
+            try { mOverlayWindowManager.removeViewImmediate(mStopControl); }
+            catch (Throwable ignored) {}
+            mStopControl = null;
         }
         try {
             mOverlayWindowManager.removeViewImmediate(mOverlayRoot);
