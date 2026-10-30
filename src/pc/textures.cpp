@@ -103,3 +103,7 @@ extern "C" void pc_textures_shutdown(void) {
 extern "C" const char* pc_textures_get_path(void) {
     return s_textures_dir_str.c_str();
 }
+
+extern "C" unsigned pc_textures_get_count(void) {
+    return static_cast<unsigned>(s_replacements.registrations.size());
+}
