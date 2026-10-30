@@ -2,6 +2,8 @@ name: Desktop Windows release
 
 on:
   push:
+    branches: [master]
+    paths: [DESKTOP_VERSION]
     tags: ['desktop-v*', '!desktop-v*-linux.*']
   workflow_dispatch:
     inputs:
@@ -37,14 +39,14 @@ jobs:
       - name: Validate release identity
         id: release
         env:
-          REQUESTED_TAG: ${{ inputs.tag || github.ref_name }}
+          REQUESTED_TAG: ${{ inputs.tag || (github.ref_type == 'tag' && github.ref_name) || '' }}
         run: |
           python3 - <<'PY'
           import os, pathlib, re, subprocess
           version = pathlib.Path('DESKTOP_VERSION').read_text().strip()
           if not re.fullmatch(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', version):
               raise SystemExit('DESKTOP_VERSION must be MAJOR.MINOR.PATCH')
-          tag = os.environ['REQUESTED_TAG']
+          tag = os.environ['REQUESTED_TAG'] or 'desktop-v' + version
           if tag != 'desktop-v' + version:
               raise SystemExit('Release tag must exactly match desktop-v' + version)
           commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
