@@ -240,6 +240,20 @@ static inline HSD_GObj* createCamera(HSD_CObjDesc* desc)
 {
     HSD_GObj* gobj = GObj_Create(0x13, 0x14, 0);
     HSD_CObj* cobj = lb_80013B14(&desc->perspective);
+#ifdef TARGET_PC
+    if (pc_desktop_requested() && HSD_CObjGetProjectionType(cobj) == PROJ_ORTHO) {
+        float top, bottom, left, right;
+        float hud_scale = pc_get_hud_scale();
+        if (!(hud_scale >= 0.5f && hud_scale <= 1.5f)) {
+            hud_scale = 1.0f;
+        }
+        HSD_CObjGetOrtho(cobj, &top, &bottom, &left, &right);
+        /* Expanding the ortho extents makes the entire HUD smaller while
+         * preserving its authored proportions and damage/stock grouping. */
+        HSD_CObjSetOrtho(cobj, top / hud_scale, bottom / hud_scale,
+                        left / hud_scale, right / hud_scale);
+    }
+#endif
     HSD_GObjObject_80390A70(gobj, HSD_GObj_CameraKind, cobj);
     GObj_SetupGXLinkMax(gobj, fn_802F36B8, 8);
     gobj->gxlink_prios = 0xD00;
