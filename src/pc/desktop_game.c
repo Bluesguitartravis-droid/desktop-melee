@@ -11,6 +11,7 @@
 #include <melee/cm/camera.h>
 #include <melee/cm/types.h>
 #include <melee/ft/forward.h>
+#include <melee/ft/fighter.h>
 #include <melee/ft/types.h>
 #include <melee/gm/gm_1601.h>
 #include <melee/gm/gm_unsplit.h>
@@ -811,7 +812,18 @@ void pc_desktop_simulation_tick(void)
     VsSceneState* state;
     Fighter* fighters[4];
     int i;
-    if (!match_active || simulation_ticks >= 300) {
+    if (!match_active) {
+        return;
+    }
+    /* Character-size changes from F1 are visual-only, so reapply the model
+     * root scale during Desktop matches without touching fighter physics. */
+    for (i = 0; i < desktop_roster_size; ++i) {
+        HSD_GObj* entity = Player_GetEntity(i);
+        if (entity != NULL && entity->user_data != NULL) {
+            Fighter_UpdateModelScale(entity);
+        }
+    }
+    if (simulation_ticks >= 300) {
         return;
     }
     ++simulation_ticks;
