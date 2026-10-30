@@ -319,7 +319,7 @@ class Launcher final : public Rml::EventListener {
     std::vector<std::string> page_focus() const {
         switch (tab) {
         case 0:
-            return {"display", "sync", "resolution", "aspect", "hud-mode", "aa", "filter",
+            return {"display", "sync", "resolution", "aspect", "hud-mode", "fighter-scale", "aa", "filter",
                 "filter-mode", "fps", "custom-textures", "backend", "performance"};
         case 1:
             return {"volume", "music-volume", "sfx-volume", "mute", "reverb"};
@@ -557,7 +557,7 @@ class Launcher final : public Rml::EventListener {
             e->SetAttribute("value", value);
     }
     static bool is_slider(const Rml::String& id) {
-        return id == "volume" || id == "resolution" || id == "scale" || id == "music-volume" ||
+        return id == "volume" || id == "resolution" || id == "scale" || id == "fighter-scale" || id == "music-volume" ||
                id == "sfx-volume";
     }
     // Writing a slider's value fires Change; `quiet` keeps that from looping
@@ -596,6 +596,8 @@ class Launcher final : public Rml::EventListener {
         text("mute", prefs.mute ? "On" : "Off");
         text("reverb", prefs.reverb ? "On" : "Off");
         text("fps", prefs.fps ? "On" : "Off");
+        slider("fighter-scale", prefs.fighter_scale * 100.0f);
+        text("fighter-scale-val", std::to_string(int(prefs.fighter_scale * 100 + 0.5f)) + "%");
         slider("scale", prefs.scale * 100.0f);
         text("scale-val", std::to_string(int(prefs.scale * 100 + 0.5f)) + "%");
         text("check-updates", prefs.check_updates ? "On" : "Off");
@@ -651,8 +653,10 @@ class Launcher final : public Rml::EventListener {
             prefs.sfx_volume = std::clamp(prefs.sfx_volume + direction * 0.05f, 0.0f, 1.0f);
         else if (id == "resolution")
             prefs.render_scale = std::clamp(prefs.render_scale + direction, 0.0f, 10.0f);
+        else if (id == "fighter-scale")
+            prefs.fighter_scale = std::clamp(prefs.fighter_scale + direction * 0.05f, 0.5f, 1.5f);
         else if (id == "scale") {
-            prefs.scale = std::clamp(prefs.scale + direction * 0.25f, 0.75f, 1.5f);
+            prefs.scale = std::clamp(prefs.scale + direction * 0.1f, 0.5f, 1.5f);
             aurora::rmlui::set_ui_scale(prefs.scale);
         } else
             return;
@@ -877,8 +881,11 @@ class Launcher final : public Rml::EventListener {
             save();
             refresh_settings();
             element("fps")->Focus();
+        } else if (id == "fighter-scale") {
+            prefs.fighter_scale = prefs.fighter_scale >= 1.5f ? 0.5f : prefs.fighter_scale + 0.1f;
+            save(); refresh_settings(); element("fighter-scale")->Focus();
         } else if (id == "scale") {
-            prefs.scale = prefs.scale >= 1.5f ? 0.75f : prefs.scale + 0.25f;
+            prefs.scale = prefs.scale >= 1.5f ? 0.5f : prefs.scale + 0.1f;
             aurora::rmlui::set_ui_scale(prefs.scale);
             save();
             refresh_settings();
@@ -999,9 +1006,13 @@ public:
                     float(int(event.GetParameter<float>("value", 0.0f) + 0.5f)), 0.0f, 10.0f);
                 text("resolution-val", resolution_name(prefs.render_scale));
                 notice();
+            } else if (id == "fighter-scale") {
+                prefs.fighter_scale = std::clamp(
+                    event.GetParameter<float>("value", 100.0f) / 100.0f, 0.5f, 1.5f);
+                text("fighter-scale-val", std::to_string(int(prefs.fighter_scale * 100 + 0.5f)) + "%");
             } else if (id == "scale") {
                 prefs.scale =
-                    std::clamp(event.GetParameter<float>("value", 100.0f) / 100.0f, 0.75f, 1.5f);
+                    std::clamp(event.GetParameter<float>("value", 100.0f) / 100.0f, 0.5f, 1.5f);
                 text("scale-val", std::to_string(int(prefs.scale * 100 + 0.5f)) + "%");
                 aurora::rmlui::set_ui_scale(prefs.scale);
             } else
@@ -1292,6 +1303,10 @@ public:
 extern "C" void pc_launcher_configure(AuroraConfig* config) {
     config_path = std::filesystem::path(config->userPath ? config->userPath : ".") / "launcher.cfg";
     prefs = launcher::load_preferences(config_path);
+#if defined(_WIN32)
+    SDL_setenv_unsafe("MELEE_DESKTOP_FIGHTER_SIZE",
+        std::to_string(int(prefs.fighter_scale * 100.0f + 0.5f)).c_str(), 1);
+#endif
 #if defined(DESKTOP_MELEE_BUILD)
     prefs.check_updates = false;
 #endif
