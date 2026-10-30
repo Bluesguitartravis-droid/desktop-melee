@@ -442,7 +442,7 @@ public class MeleeActivity extends SDLActivity {
             } catch (Throwable ignored) {}
         }
         super.onStop();
-        if (mSystemOverlayAttached && !isFinishing()) {
+        if (mSystemOverlayAttached && !isFinishing() && !mLauncherActive) {
             try {
                 resumeNativeThread();
                 org.libsdl.app.SDLActivity.nativeFocusChanged(true);
