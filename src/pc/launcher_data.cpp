@@ -439,7 +439,7 @@ bool save_preferences(
          << std::quoted(prefs.net_target) << "\nnet_delay " << prefs.net_delay << "\nnet_port "
          << prefs.net_port << "\n";
     text << "disc " << std::quoted(prefs.disc) << "\nvsync " << prefs.vsync << "\nfullscreen "
-         << prefs.fullscreen << "\nscale " << prefs.scale << '\n'
+         << prefs.fullscreen << "\nscale " << prefs.scale << "\nfighter_scale " << prefs.fighter_scale << '\n'
          << "render_scale " << prefs.render_scale << "\nvolume " << prefs.volume << "\nmsaa "
          << prefs.msaa << "\nanisotropy " << prefs.anisotropy << "\nwidescreen " << prefs.widescreen
          << "\nmute " << prefs.mute << "\nfps " << prefs.fps << "\nfilter_mode "
