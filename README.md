@@ -9,7 +9,7 @@ experimental wallpaper terrain.
 
 | Platform | Current build | Download | Status |
 |---|---:|---|---|
-| **Windows x64** | **0.1.15** | **[Windows installer](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/desktop-v0.1.15/Desktop-Melee-Setup-x64.exe)** | HUD visibility toggle, character visual-quality presets, HD texture-pack support/status/reload, live model/HUD sizing, ground-collision recovery |
+| **Windows x64** | **0.1.16** | **[Windows installer](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/desktop-v0.1.16/Desktop-Melee-Setup-x64.exe)** | No HUD launcher toggle, character visual-quality presets, HD texture-pack support/status/reload, live model/HUD sizing, ground-collision recovery |
 | **Linux x86_64** | **0.1.7 Linux preview 1** | **[Linux AppImage](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/desktop-v0.1.7-linux.1/Desktop-Melee-Linux-x86_64.AppImage)** | Native Linux preview; desktop overlay requires composited X11 |
 | **Android ARM64** | **0.1.6 preview 7** | **[Android APK](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/android-full-v0.1.6-preview.7/Desktop-Melee-Android-Full-0.1.6.apk)** | Native engine, Home overlay, emergency stop, copyable diagnostics |
 
@@ -247,3 +247,8 @@ This is a visual-quality layer only; character physics, skeleton animation, coll
 ### HUD visibility (Windows 0.1.15)
 
 Graphics now includes **HUD visibility**. Set it to **Off** to completely skip the in-match HUD draw (damage percentages, stocks, timer and related HUD graphics) while leaving fighters, stage rendering and gameplay untouched. The setting applies live from the F1 menu and is saved for future launches.
+
+
+### No HUD (Windows 0.1.16)
+
+The normal pre-game launcher now has **Settings → Graphics → No HUD**. Set **No HUD** to **On** before starting a match to hide damage percentages, stocks, timer and the rest of the in-match HUD. The setting is saved between launches. F1 is not required.
