@@ -183,6 +183,44 @@ std::string resolution_name(float scale) {
     return scale == 0 ? std::string("Auto") : std::to_string(int(scale)) + "x";
 }
 
+int character_quality_index() {
+    if (!prefs.custom_textures && int(prefs.render_scale + 0.5f) == 1)
+        return 0;
+    if (prefs.custom_textures && int(prefs.render_scale + 0.5f) == 2)
+        return 1;
+    if (prefs.custom_textures && int(prefs.render_scale + 0.5f) == 4)
+        return 2;
+    return 3;
+}
+
+const char* character_quality_name() {
+    static const char* const names[] = {"Original", "HD", "Ultra", "Custom"};
+    return names[character_quality_index()];
+}
+
+void apply_character_quality(int direction) {
+    int current = character_quality_index();
+    int next;
+    if (current == 3) {
+        next = direction < 0 ? 0 : 1;
+    } else {
+        next = (current + (direction < 0 ? 2 : 1)) % 3;
+    }
+    prefs.render_scale = next == 0 ? 1.0f : next == 1 ? 2.0f : 4.0f;
+    prefs.custom_textures = next != 0;
+    VISetFrameBufferScale(prefs.render_scale);
+    pc_textures_reload();
+}
+
+std::string hd_texture_status() {
+    if (!prefs.custom_textures)
+        return "Off";
+    const unsigned count = pc_textures_get_count();
+    if (count == 0)
+        return "Enabled - no pack loaded";
+    return "Enabled - " + std::to_string(count) + " loaded";
+}
+
 std::string identity(const std::string& path) {
     if (path.rfind("content://", 0) == 0)
         return path;
@@ -330,8 +368,8 @@ class Launcher final : public Rml::EventListener {
     std::vector<std::string> page_focus() const {
         switch (tab) {
         case 0:
-            return {"display", "sync", "resolution", "aspect", "hud-mode", "fighter-scale", "hud-scale", "aa", "filter",
-                "filter-mode", "fps", "custom-textures", "backend", "performance"};
+            return {"display", "sync", "resolution", "aspect", "hud-mode", "fighter-scale", "hud-scale", "character-quality", "aa", "filter",
+                "filter-mode", "fps", "custom-textures", "reload-textures", "backend", "performance"};
         case 1:
             return {"volume", "music-volume", "sfx-volume", "mute", "reverb"};
         case 2:
@@ -591,7 +629,8 @@ class Launcher final : public Rml::EventListener {
         text("aa", prefs.msaa == 1 ? "Off" : std::to_string(prefs.msaa) + "x MSAA");
         text("filter", std::to_string(prefs.anisotropy) + "x");
         text("filter-mode", filter_name(prefs.filter_mode));
-        text("custom-textures", prefs.custom_textures ? "Enabled" : "Disabled");
+        text("character-quality", character_quality_name());
+        text("custom-textures", hd_texture_status());
         text("hud-mode", prefs.hud_mode == 0 ? "Classic (4:3)" : "Wide (16:9)");
         text("frozen-stadium", prefs.frozen_stadium ? "Hazardless" : "Normal");
         text("free-camera", prefs.free_camera ? "Free" : "Normal");
@@ -792,6 +831,16 @@ class Launcher final : public Rml::EventListener {
             if (std::getenv("MELEE_VSYNC"))
                 status("VSync is controlled by the MELEE_VSYNC environment setting.");
             element("sync")->Focus();
+        } else if (id == "character-quality") {
+            apply_character_quality(direction);
+            save();
+            refresh_settings();
+            element("character-quality")->Focus();
+        } else if (id == "reload-textures") {
+            pc_textures_reload();
+            refresh_settings();
+            status(hd_texture_status());
+            element("reload-textures")->Focus();
         } else if (id == "resolution") {
             prefs.render_scale = prefs.render_scale >= 10 ? 0 : int(prefs.render_scale) + 1;
             VISetFrameBufferScale(prefs.render_scale);
@@ -820,6 +869,7 @@ class Launcher final : public Rml::EventListener {
             element("backend")->Focus();
         } else if (id == "custom-textures") {
             prefs.custom_textures = !prefs.custom_textures;
+            pc_textures_reload();
             save();
             refresh_settings();
             element("custom-textures")->Focus();
@@ -1540,8 +1590,8 @@ public:
     std::vector<std::string> page_focus() const {
         switch (tab) {
         case 0:
-            return {"display", "sync", "resolution", "aspect", "hud-mode", "fighter-scale", "hud-scale", "aa", "filter",
-                "filter-mode", "custom-textures", "backend"};
+            return {"display", "sync", "resolution", "aspect", "hud-mode", "fighter-scale", "hud-scale", "character-quality", "aa", "filter",
+                "filter-mode", "custom-textures", "reload-textures", "backend"};
         case 1:
             return {"volume", "music-volume", "sfx-volume", "mute", "reverb", "fps", "scale",
                 "port-check-update"};
@@ -1744,7 +1794,8 @@ public:
         label("aa", prefs.msaa == 1 ? "Off" : std::to_string(prefs.msaa) + "x MSAA");
         label("filter", std::to_string(prefs.anisotropy) + "x");
         label("filter-mode", filter_name(prefs.filter_mode));
-        label("custom-textures", prefs.custom_textures ? "Enabled" : "Disabled");
+        label("character-quality", character_quality_name());
+        label("custom-textures", hd_texture_status());
         label("hud-mode", prefs.hud_mode == 0 ? "Classic (4:3)" : "Wide (16:9)");
         label("frozen-stadium", prefs.frozen_stadium ? "Hazardless" : "Normal");
         label("free-camera", prefs.free_camera ? "Free" : "Normal");
@@ -1995,6 +2046,17 @@ public:
         } else if (id == "sync" && !std::getenv("MELEE_VSYNC")) {
             prefs.vsync = !prefs.vsync;
             aurora_enable_vsync(prefs.vsync);
+        } else if (id == "character-quality") {
+            int current = character_quality_index();
+            int next = current == 3 ? (direction < 0 ? 0 : 1) :
+                (current + (direction < 0 ? 2 : 1)) % 3;
+            prefs.render_scale = next == 0 ? 1.0f : next == 1 ? 2.0f : 4.0f;
+            prefs.custom_textures = next != 0;
+            pc_textures_reload();
+            resize_pending = true;
+        } else if (id == "reload-textures") {
+            pc_textures_reload();
+            label("menu-status", hd_texture_status());
         } else if (id == "resolution") {
             prefs.render_scale = prefs.render_scale >= 10 ? 0 : int(prefs.render_scale) + 1;
             resize_pending = true;
