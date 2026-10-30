@@ -1,4 +1,4 @@
-name: Publish Android full Desktop Melee 0.1.5
+name: Publish Android full Desktop Melee 0.1.6
 on:
   push:
     branches: [android-full-desktop]
@@ -13,53 +13,58 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Await successful signed Android Full 0.1.5 build
+      - name: Wait for signed Android Full 0.1.6 build
         run: |
           set -euo pipefail
-          RUN=40996146761
+          RUN=40998052233
           while true; do
             STATUS="$(gh run view "$RUN" --repo "$GITHUB_REPOSITORY" --json status --jq '.status')"
             if [ "$STATUS" = "completed" ]; then break; fi
-            echo "Android build is $STATUS; checking again in 20 seconds"
+            echo "Android full 0.1.6 build: $STATUS; checking in 20 seconds"
             sleep 20
           done
           gh run view "$RUN" --repo "$GITHUB_REPOSITORY" --json conclusion,headSha \
-            --jq '.conclusion == "success" and .headSha == "85929a52524308eb8f19e3a7145734e2ff6fff23"' | grep -Fx true
-      - name: Download and verify Android Full 0.1.5 APK
+            --jq '.conclusion == "success" and .headSha == "6d56017341895cd5e43f574b58d4102f109b3221"' | grep -Fx true
+      - name: Verify signed Android Full 0.1.6 APK
         run: |
           set -euo pipefail
           mkdir deliver
-          gh run download 40996146761 --repo "$GITHUB_REPOSITORY" --name Desktop-Melee-Android-Full-0.1.5 --dir deliver
+          gh run download 40998052233 --repo "$GITHUB_REPOSITORY" \
+            --name Desktop-Melee-Android-Full-0.1.6 --dir deliver
           cd deliver
           EXPECTED="$(awk 'NR==1 {print $1}' SHA256SUMS)"
-          printf '%s  %s\n' "$EXPECTED" Desktop-Melee-Android-Full-0.1.5.apk | sha256sum --check -
+          printf '%s  %s\n' "$EXPECTED" Desktop-Melee-Android-Full-0.1.6.apk | sha256sum --check -
           grep -F "package: name='com.desktopmelee.android'" APK-VERIFICATION.txt
-          grep -F "versionCode='9'" APK-VERIFICATION.txt
-      - name: Publish signed overlay recovery prerelease
+          grep -F "versionCode='10'" APK-VERIFICATION.txt
+      - name: Publish Android Full 0.1.6 per-pixel overlay prerelease
         run: |
           set -euo pipefail
           cd deliver
-          TAG="android-full-v0.1.5-preview.6"
+          TAG="android-full-v0.1.6-preview.7"
           cat > RELEASE-NOTES.md <<'NOTES'
-          # Android Full 0.1.5 - Overlay recovery and diagnostic preview
+          # Desktop Melee Android Full 0.1.6 - true transparency and bottom floor
 
-          A test update for Odin / Samsung Android launchers that showed the native disc picker over Home and left the overlay difficult to dismiss. Hardware verification is still required.
+          Test preview for Odin and other Android handhelds. The system overlay already works in 0.1.5, but its rendered game scene looked translucent rather than showing solid fighters over Home. Device verification is pending.
 
-          - Disc picker remains foreground and interactive until Play starts.
-          - The game switches to its system overlay and moves behind Home only after the native launcher exits.
-          - An independent red STOP OVERLAY button exits the overlay and game process without rebooting Android.
-          - The setup screen has Copy overlay / crash diagnostics. After a failed launch, reopen the app, copy the report and paste it into ChatGPT. Events survive restarts; accessible logcat includes native renderer messages where available.
-          - Overlay is temporarily hidden while an Android file picker is open.
-          - Signed with the same Android Full key as 0.1.4; package com.desktopmelee.android; versionCode 9.
+          - Clear the Android match's native EFB background to transparent pixels (like the Windows/Linux desktop overlay), rather than showing the ordinary stage image.
+          - Show solid fighter pixels by default; the previous global 70% opacity is no longer forced in Watch mode.
+          - New optional Watch mode Home touch-through toggle: this may dim the full window when required by Android 12+ input security.
+          - Set the default floor at 93% of screen height, and migrate previous default floor values automatically while preserving custom positions.
+          - Read the native SDL surface dimensions for arena coordinates, avoiding screen-inset mismatches.
+          - Retains the red STOP OVERLAY control and copyable Android startup/crash diagnostics from 0.1.5.
+          - Same package com.desktopmelee.android and signing certificate as 0.1.5; versionCode 10.
 
-          The APK was taken from successful Actions run 40996146761, source commit 85929a52524308eb8f19e3a7145734e2ff6fff23. This preview has not yet been validated on the actual Odin hardware. No game disc data is included.
+          This is a testing preview: the graphics and touch behavior have not yet been confirmed on Odin hardware. No game discs are included.
+
+          Build: https://github.com/Bluesguitartravis-droid/desktop-melee/actions/runs/40998052233
+          Source: 6d56017341895cd5e43f574b58d4102f109b3221
           NOTES
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Android Full 0.1.5 is already published."
+            echo "Android Full 0.1.6 was already published."
             exit 0
           fi
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target android-full-desktop \
             --prerelease --latest=false \
-            --title "Desktop Melee Android Full 0.1.5 - overlay recovery preview 6" \
+            --title "Desktop Melee Android Full 0.1.6 - true alpha and bottom floor preview 7" \
             --notes-file RELEASE-NOTES.md \
-            Desktop-Melee-Android-Full-0.1.5.apk APK-VERIFICATION.txt SHA256SUMS
+            Desktop-Melee-Android-Full-0.1.6.apk APK-VERIFICATION.txt SHA256SUMS
