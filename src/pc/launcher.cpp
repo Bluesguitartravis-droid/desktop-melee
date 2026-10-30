@@ -41,6 +41,15 @@ namespace {
 launcher::Preferences prefs;
 std::filesystem::path config_path;
 
+void sync_desktop_fighter_size() {
+#if defined(_WIN32)
+    /* Geometry samples this at the start of each desktop match; do not
+     * resize collision or move fighters mid-frame. */
+    SDL_setenv_unsafe("MELEE_DESKTOP_FIGHTER_SIZE",
+        std::to_string(int(prefs.fighter_scale * 100.0f + 0.5f)).c_str(), 1);
+#endif
+}
+
 bool set_fullscreen(SDL_Window* window, bool fullscreen) {
 #ifdef __ANDROID__
     return pc_android_set_fullscreen(fullscreen);
@@ -312,6 +321,7 @@ class Launcher final : public Rml::EventListener {
             note(value);
     }
     void save() {
+        sync_desktop_fighter_size();
         std::string error;
         if (!launcher::save_preferences(config_path, prefs, error))
             status(error, true);
@@ -596,8 +606,6 @@ class Launcher final : public Rml::EventListener {
         text("mute", prefs.mute ? "On" : "Off");
         text("reverb", prefs.reverb ? "On" : "Off");
         text("fps", prefs.fps ? "On" : "Off");
-        slider("fighter-scale", prefs.fighter_scale * 100.0f);
-        text("fighter-scale-val", std::to_string(int(prefs.fighter_scale * 100 + 0.5f)) + "%");
         slider("fighter-scale", prefs.fighter_scale * 100.0f);
         text("fighter-scale-val", std::to_string(int(prefs.fighter_scale * 100 + 0.5f)) + "%");
         slider("scale", prefs.scale * 100.0f);
@@ -1305,10 +1313,7 @@ public:
 extern "C" void pc_launcher_configure(AuroraConfig* config) {
     config_path = std::filesystem::path(config->userPath ? config->userPath : ".") / "launcher.cfg";
     prefs = launcher::load_preferences(config_path);
-#if defined(_WIN32)
-    SDL_setenv_unsafe("MELEE_DESKTOP_FIGHTER_SIZE",
-        std::to_string(int(prefs.fighter_scale * 100.0f + 0.5f)).c_str(), 1);
-#endif
+    sync_desktop_fighter_size();
 #if defined(DESKTOP_MELEE_BUILD)
     prefs.check_updates = false;
 #endif
@@ -1739,6 +1744,8 @@ public:
         label("mute", prefs.mute ? "On" : "Off");
         label("reverb", prefs.reverb ? "On" : "Off");
         label("fps", prefs.fps ? "On" : "Off");
+        slider("fighter-scale", prefs.fighter_scale * 100.0f);
+        label("fighter-scale-val", std::to_string(int(prefs.fighter_scale * 100 + 0.5f)) + "%");
         slider("scale", prefs.scale * 100.0f);
         label("scale-val", std::to_string(int(prefs.scale * 100 + 0.5f)) + "%");
         label("menu-version", pc::get_app_version());
@@ -1756,6 +1763,7 @@ public:
         quiet = false;
     }
     void saved() {
+        sync_desktop_fighter_size();
         std::string error;
         label("menu-status",
             launcher::save_preferences(config_path, prefs, error) ? "Saved." : error);
