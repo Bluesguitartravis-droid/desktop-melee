@@ -105,6 +105,10 @@ public class MeleeActivity extends SDLActivity {
     private android.view.WindowManager mOverlayWindowManager;
     private android.view.View mOverlayRoot;
     private boolean mSystemOverlayAttached;
+    private boolean mLauncherActive = true;
+    private android.view.WindowManager.LayoutParams mOverlayParams;
+    private android.view.View mStopControl;
+    private boolean mOverlayHiddenForPicker;
 
     public boolean isDesktopOverlayEnabled() { return mDesktopOverlay; }
     public boolean isDesktopWatchMode() { return mDesktopWatch; }
@@ -130,7 +134,7 @@ public class MeleeActivity extends SDLActivity {
             if (parent instanceof android.view.ViewGroup) {
                 ((android.view.ViewGroup) parent).removeView(mLayout);
             }
-            mLayout.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+            mLayout.setBackgroundColor(mLauncherActive ? android.graphics.Color.BLACK : android.graphics.Color.TRANSPARENT);
             mOverlayWindowManager =
                 (android.view.WindowManager) getSystemService(android.content.Context.WINDOW_SERVICE);
 
@@ -138,7 +142,7 @@ public class MeleeActivity extends SDLActivity {
                 android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS |
                 android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED |
                 android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL;
-            if (mDesktopWatch) {
+            if (mDesktopWatch && !mLauncherActive) {
                 flags |= android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
                     android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
             }
@@ -152,7 +156,7 @@ public class MeleeActivity extends SDLActivity {
                     android.graphics.PixelFormat.TRANSLUCENT);
             lp.gravity = android.view.Gravity.TOP | android.view.Gravity.START;
             lp.softInputMode = android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING;
-            if (mDesktopWatch) {
+            if (mDesktopWatch && !mLauncherActive) {
                 float safeAlpha = 0.70f;
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                     android.hardware.input.InputManager input =
@@ -173,8 +177,11 @@ public class MeleeActivity extends SDLActivity {
             }
             mOverlayWindowManager.addView(mLayout, lp);
             mOverlayRoot = mLayout;
+            mOverlayParams = lp;
             mSystemOverlayAttached = true;
-            if (!mDesktopWatch) {
+            addEmergencyStopControl();
+            com.desktopmelee.android.OverlayDiagnostics.record(this, "system overlay attached; launcher=" + mLauncherActive);
+            if (!mDesktopWatch || mLauncherActive) {
                 mLayout.setFocusableInTouchMode(true);
                 mLayout.requestFocus();
                 mLayout.postDelayed(() -> {
@@ -190,13 +197,11 @@ public class MeleeActivity extends SDLActivity {
                     "SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1");
             } catch (Throwable ignored) {}
 
-            mLayout.postDelayed(() -> {
-                if (!isFinishing() && mSystemOverlayAttached) {
-                    moveTaskToBack(true);
-                }
-            }, 150L);
+            if (!mLauncherActive) sendMatchBehindHome();
         } catch (Throwable t) {
             android.util.Log.e("DesktopMelee", "Could not attach TYPE_APPLICATION_OVERLAY", t);
+            com.desktopmelee.android.OverlayDiagnostics.record(this, "OVERLAY ATTACH FAILED: " + android.util.Log.getStackTraceString(t));
+            detachSystemOverlay();
             mSystemOverlayAttached = false;
             mOverlayRoot = null;
             mOverlayWindowManager = null;
@@ -220,17 +225,18 @@ public class MeleeActivity extends SDLActivity {
         mSystemOverlayAttached = false;
         mOverlayRoot = null;
         mOverlayWindowManager = null;
+        mOverlayParams = null;
     }
 
     private void applyDesktopWindowMode() {
         android.view.Window window = getWindow();
         if (window == null) return;
         if (mDesktopOverlay) {
-            window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(mLauncherActive ? android.graphics.Color.BLACK : android.graphics.Color.TRANSPARENT));
             window.setDimAmount(0.0f);
             window.addFlags(android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
             window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);
-            if (mDesktopWatch) {
+            if (mDesktopWatch && !mLauncherActive) {
                 window.addFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE |
                     android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
             } else {
