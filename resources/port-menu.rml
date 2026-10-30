@@ -75,6 +75,7 @@
             </div>
             <div class="row" data-desc="Scale the visible character models in Desktop mode. Collision stays unchanged."><span class="name">Character model size</span><div class="slider-control"><input type="range" class="range" id="fighter-scale" min="50" max="150" step="5" value="100" /><span id="fighter-scale-val" class="slider-value">100%</span></div></div>
             <div class="row" data-desc="Scale damage percentages, stocks and other in-match HUD graphics."><span class="name">HUD size</span><div class="slider-control"><input type="range" class="range" id="hud-scale" min="50" max="150" step="5" value="100" /><span id="hud-scale-val" class="slider-value">100%</span></div></div>
+            <div class="row" data-desc="Original = 1x stock textures. HD = 2x render + replacement textures. Ultra = 4x render + replacement textures."><span class="name">Character visual quality</span><button id="character-quality" class="value">Original</button></div>
             <div class="row" data-desc="Anti-aliasing RESTART">
               <span class="name">Anti-aliasing <span class="badge">RESTART</span>
               </span>
@@ -90,10 +91,14 @@
               </span>
               <button id="filter-mode" class="value">Off</button>
             </div>
-            <div class="row" data-desc="Load replacement textures from the textures directory.">
-              <span class="name">Custom HD textures<span class="detail">Load replacement textures from the textures directory.</span>
+            <div class="row" data-desc="Use higher-resolution replacement textures from the Desktop Melee textures directory.">
+              <span class="name">HD character textures<span class="detail">Loads replacement PNG/DDS textures from your textures folder.</span>
               </span>
-              <button id="custom-textures" class="value">Enabled</button>
+              <button id="custom-textures" class="value">Off</button>
+            </div>
+            <div class="row" data-desc="Rescan the textures folder after adding or replacing files.">
+              <span class="name">Reload HD textures</span>
+              <button id="reload-textures" class="value action">Reload</button>
             </div>
             <div class="row" data-desc="Graphics backend RESTART">
               <span class="name">Graphics backend <span class="badge">RESTART</span>
