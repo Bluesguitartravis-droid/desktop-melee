@@ -389,6 +389,10 @@ Preferences load_preferences(const std::filesystem::path& path) {
             float value;
             if (row >> value && std::isfinite(value) && value >= 0.5f && value <= 1.5f)
                 prefs.fighter_scale = value;
+        } else if (key == "hud_scale") {
+            float value;
+            if (row >> value && std::isfinite(value) && value >= 0.5f && value <= 1.5f)
+                prefs.hud_scale = value;
         } else if (key == "check_updates" || key == "custom_textures" || key == "unlock_all" ||
                    key == "frozen_stadium" || key == "free_camera" || key == "ucf" ||
                    key == "reverb")
@@ -439,7 +443,8 @@ bool save_preferences(
          << std::quoted(prefs.net_target) << "\nnet_delay " << prefs.net_delay << "\nnet_port "
          << prefs.net_port << "\n";
     text << "disc " << std::quoted(prefs.disc) << "\nvsync " << prefs.vsync << "\nfullscreen "
-         << prefs.fullscreen << "\nscale " << prefs.scale << "\nfighter_scale " << prefs.fighter_scale << '\n'
+         << prefs.fullscreen << "\nscale " << prefs.scale << "\nfighter_scale " << prefs.fighter_scale
+         << "\nhud_scale " << prefs.hud_scale << '\n'
          << "render_scale " << prefs.render_scale << "\nvolume " << prefs.volume << "\nmsaa "
          << prefs.msaa << "\nanisotropy " << prefs.anisotropy << "\nwidescreen " << prefs.widescreen
          << "\nmute " << prefs.mute << "\nfps " << prefs.fps << "\nfilter_mode "
