@@ -632,7 +632,7 @@ class Launcher final : public Rml::EventListener {
         text("character-quality", character_quality_name());
         text("custom-textures", hd_texture_status());
         text("hud-mode", prefs.hud_mode == 0 ? "Classic (4:3)" : "Wide (16:9)");
-        text("hud-visible", prefs.hud_visible ? "On" : "Off");
+        text("hud-visible", prefs.hud_visible ? "Off" : "On");
         text("frozen-stadium", prefs.frozen_stadium ? "Hazardless" : "Normal");
         text("free-camera", prefs.free_camera ? "Free" : "Normal");
         text("ucf", std::getenv("MELEE_UCF") ? "Environment override" : prefs.ucf ? "On" : "Off");
@@ -1803,7 +1803,7 @@ public:
         label("character-quality", character_quality_name());
         label("custom-textures", hd_texture_status());
         label("hud-mode", prefs.hud_mode == 0 ? "Classic (4:3)" : "Wide (16:9)");
-        label("hud-visible", prefs.hud_visible ? "On" : "Off");
+        label("hud-visible", prefs.hud_visible ? "Off" : "On");
         label("frozen-stadium", prefs.frozen_stadium ? "Hazardless" : "Normal");
         label("free-camera", prefs.free_camera ? "Free" : "Normal");
         label("ucf", std::getenv("MELEE_UCF") ? "Environment override" : prefs.ucf ? "On" : "Off");
