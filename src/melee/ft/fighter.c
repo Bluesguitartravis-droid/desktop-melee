@@ -94,6 +94,7 @@
 #include <sysdolphin/baselib/random.h>
 #ifdef TARGET_PC
 #include "pc/desktop_fighter.h"
+#include "pc/desktop_game.h"
 #include "pc/slp.h"
 #endif
 
@@ -223,15 +224,19 @@ void Fighter_UpdateModelScale(Fighter_GObj* gobj)
     HSD_JObj* jobj = GET_JOBJ(gobj);
     Vec3 scale;
     float modelScale = ftCommon_GetModelScale(fp);
+    float visualScale = 1.0f;
+#ifdef TARGET_PC
+    visualScale = pc_desktop_character_scale();
+#endif
 
     if (fp->x34_scale.z != 1.0f) {
-        scale.x = fp->x34_scale.z;
+        scale.x = fp->x34_scale.z * visualScale;
     } else {
-        scale.x = modelScale;
+        scale.x = modelScale * visualScale;
     }
 
-    scale.y = modelScale;
-    scale.z = modelScale;
+    scale.y = modelScale * visualScale;
+    scale.z = modelScale * visualScale;
 
     HSD_JObjSetScale(jobj, &scale);
 }
