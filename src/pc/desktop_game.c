@@ -36,6 +36,7 @@ static bool match_active;
 static AuroraDesktopGeometry geometry;
 static float view_left, view_right, view_top, view_bottom;
 static float floor_left, floor_right;
+static float desktop_world_height = 240.0f;
 static unsigned simulation_ticks;
 static int desktop_roster_size = 2;
 
@@ -198,11 +199,15 @@ void pc_desktop_begin_match(StartMeleeData* start)
     }
     /* A fixed 240 world-unit screen height keeps the fighters useful desktop
      * size without changing their models, movement speed or hitboxes. */
-    units_per_pixel = 240.0f / geometry.height;
+    /* Zoom the WORLD camera rather than the character model: physics, collision,
+     * stage geometry, movement and hitboxes all keep their original sizes. */
+    desktop_world_height = 240.0f * 100.0f /
+        option_int("MELEE_DESKTOP_FIGHTER_SIZE", 100, 50, 150);
+    units_per_pixel = desktop_world_height / geometry.height;
     view_left = -0.5f * geometry.width * units_per_pixel;
     view_right = -view_left;
     view_top = geometry.platform_top * units_per_pixel;
-    view_bottom = view_top - 240.0f;
+    view_bottom = view_top - desktop_world_height;
     floor_left = view_left + geometry.platform_left * units_per_pixel;
     floor_right = view_left + geometry.platform_right * units_per_pixel;
     match_armed = true;
@@ -388,7 +393,7 @@ static void update_platform_slot(int index, const AuroraDesktopWindowEdge* edge,
     int joint_id = window_joint_start + index;
     CollJoint* joint = &mpGetGroundCollJoint()[joint_id];
     CollVtx* vertices = &mpGetGroundCollVtx()[window_vertex_start + 2 * index];
-    float units = 240.0f / geometry.height;
+    float units = desktop_world_height / geometry.height;
     float dx = 0.0f, dy = 0.0f;
     float left = view_left + edge->left * units;
     float right = view_left + edge->right * units;
@@ -862,7 +867,8 @@ bool pc_desktop_apply_camera(HSD_CObj* camera, CameraTransformState* transform)
     center_y = 0.5f * (view_top + view_bottom);
     interest = (Vec3) { 0.0f, center_y, 0.0f };
     eye = (Vec3) { 0.0f, center_y, 1000.0f };
-    HSD_CObjSetOrtho(camera, 120.0f, -120.0f, view_left, view_right);
+    HSD_CObjSetOrtho(camera, 0.5f * desktop_world_height,
+                     -0.5f * desktop_world_height, view_left, view_right);
     HSD_CObjSetFlags(camera, PC_COBJ_FILL_FRAME);
     HSD_CObjSetInterest(camera, &interest);
     HSD_CObjSetEyePosition(camera, &eye);
