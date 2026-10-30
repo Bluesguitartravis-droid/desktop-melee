@@ -89,6 +89,7 @@ bool pc_is_frozen_stadium_enabled(void);
 bool pc_is_free_camera_enabled(void);
 bool pc_is_ucf_enabled(void);
 int pc_get_hud_mode(void);
+bool pc_is_hud_visible(void);
 float pc_get_hud_scale(void);
 float pc_get_character_scale(void);
 float pc_get_music_volume(void);
