@@ -72,12 +72,50 @@ void pc_desktop_check_blast_zones_before_map(Fighter_GObj* gobj)
     ftCo_800D3158(gobj);
 }
 
+/* Recovery only for a real, enabled Final Destination base floor.
+ * Dynamic app-window platforms are excluded, and explicit drop-through is
+ * respected. The native map callback always runs first; this handles the
+ * rare frame whose crossing was missed while the taskbar sits by the KO edge. */
+static bool desktop_recover_missed_taskbar(Fighter_GObj* gobj)
+{
+    Fighter* fp = GET_FIGHTER(gobj);
+    MapCollData* map = mpLib_8004D164();
+    int first, last, i;
+    if (!pc_desktop_collision_fixed() || map == NULL || fp->coll_cb == NULL ||
+        fp->ground_or_air != GA_Air || fp->victim_gobj != NULL ||
+        !isfinite(fp->prev_pos.y) || !isfinite(fp->cur_pos.y) ||
+        !isfinite(fp->cur_pos.x) || fp->prev_pos.y < -0.25f ||
+        fp->cur_pos.y >= 0.0f || fp->cur_pos.y >= fp->prev_pos.y ||
+        fp->cur_pos.x < Stage_GetBlastZoneLeftOffset() ||
+        fp->cur_pos.x > Stage_GetBlastZoneRightOffset()) return false;
+
+    first = map->ranges[MapLineGroup_Floor].start;
+    last = first + map->ranges[MapLineGroup_Floor].count;
+    if (first < 0 || last > map->line_count) return false;
+    for (i = first; i < last; ++i) {
+        Vec3 probe = { fp->cur_pos.x, fp->cur_pos.y, 0.0f };
+        float delta;
+        if (i == fp->coll_data.floor_skip || !mpLib_80054ED8(i) ||
+            !(mpLineGetKind(i) & CollLine_Floor)) continue;
+        if (mpLib_8004DD90_Floor(i, &probe, &delta, NULL, NULL) < 0 ||
+            !isfinite(delta) || delta < 0.0f ||
+            fp->cur_pos.y + delta > fp->prev_pos.y + 0.25f) continue;
+        fp->cur_pos.y += delta;
+        fp->coll_data.cur_pos = fp->cur_pos;
+        fp->coll_data.floor.index = i;
+        fp->ground_or_air = GA_Ground;
+        return true;
+    }
+    return false;
+}
+
 void pc_desktop_check_blast_zones_after_map(Fighter_GObj* gobj)
 {
     Fighter* fp = GET_FIGHTER(gobj);
     if (!pc_desktop_collision_fixed() ||
         !(fp->cur_pos.y < Stage_GetBlastZoneBottomOffset()) ||
-        desktop_supported_throw(gobj)) {
+        desktop_supported_throw(gobj) ||
+        desktop_recover_missed_taskbar(gobj)) {
         return;
     }
     ftCo_800D3158(gobj);
