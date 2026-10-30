@@ -23,6 +23,7 @@ void pc_textures_shutdown(void);
 
 /* Returns the resolved textures directory path (or empty string if none). */
 const char* pc_textures_get_path(void);
+unsigned pc_textures_get_count(void);
 
 #ifdef __cplusplus
 }
