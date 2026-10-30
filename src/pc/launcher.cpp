@@ -27,6 +27,7 @@
 #endif
 #include <RmlUi/Core.h>
 #include <SDL3/SDL.h>
+#include <dolphin/vi.h>
 #include <algorithm>
 #include <chrono>
 #include <random>
