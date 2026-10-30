@@ -68,6 +68,7 @@
               </span>
               <button id="aspect" class="value">Original (73:60)</button>
             </div>
+            <div class="row" data-desc="Hide the in-match damage, stocks, timer and other HUD graphics."><span class="name">No HUD</span><button id="hud-visible" class="value">Off</button></div>
             <div class="row" data-desc="Classic keeps 4:3 safe margins; Wide anchors damage/stocks to 16:9 edges.">
               <span class="name">HUD layout<span class="detail">Classic keeps 4:3 safe margins; Wide anchors damage/stocks to 16:9 edges.</span>
               </span>
