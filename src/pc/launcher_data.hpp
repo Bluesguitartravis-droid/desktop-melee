@@ -36,6 +36,7 @@ struct Preferences {
     float scale = 0.8f;
     float fighter_scale = 1.0f; // Desktop character model scale; gameplay collision stays native.
     float hud_scale = 1.0f; // In-match HUD render scale.
+    bool hud_visible = true; // Desktop in-match HUD visibility.
 #if defined(__ANDROID__)
     float render_scale = 1.0f, volume = 1.0f;
     int msaa = 1, anisotropy = 1;
