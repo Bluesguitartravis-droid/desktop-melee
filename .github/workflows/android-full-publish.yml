@@ -1,4 +1,4 @@
-name: Publish Android full Desktop Melee 0.1.4
+name: Publish Android full Desktop Melee 0.1.5
 on:
   push:
     branches: [android-full-desktop]
@@ -9,53 +9,57 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 95
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Verify successful Android Full 0.1.4 build
+      - name: Await successful signed Android Full 0.1.5 build
         run: |
           set -euo pipefail
-          gh run view 40972691952 --repo "$GITHUB_REPOSITORY" --json conclusion,headSha \
-            --jq '.conclusion == "success" and .headSha == "a1eb3704da6da121834c1d3abd6d0a0ed80bd830"' | grep -Fx true
-      - name: Download validated full APK artifact
+          RUN=40996146761
+          while true; do
+            STATUS="$(gh run view "$RUN" --repo "$GITHUB_REPOSITORY" --json status --jq '.status')"
+            if [ "$STATUS" = "completed" ]; then break; fi
+            echo "Android build is $STATUS; checking again in 20 seconds"
+            sleep 20
+          done
+          gh run view "$RUN" --repo "$GITHUB_REPOSITORY" --json conclusion,headSha \
+            --jq '.conclusion == "success" and .headSha == "85929a52524308eb8f19e3a7145734e2ff6fff23"' | grep -Fx true
+      - name: Download and verify Android Full 0.1.5 APK
         run: |
           set -euo pipefail
           mkdir deliver
-          gh run download 40972691952 --repo "$GITHUB_REPOSITORY" --name Desktop-Melee-Android-Full-0.1.4 --dir deliver
+          gh run download 40996146761 --repo "$GITHUB_REPOSITORY" --name Desktop-Melee-Android-Full-0.1.5 --dir deliver
           cd deliver
           EXPECTED="$(awk 'NR==1 {print $1}' SHA256SUMS)"
-          printf '%s  %s\n' "$EXPECTED" Desktop-Melee-Android-Full-0.1.4.apk | sha256sum --check -
+          printf '%s  %s\n' "$EXPECTED" Desktop-Melee-Android-Full-0.1.5.apk | sha256sum --check -
           grep -F "package: name='com.desktopmelee.android'" APK-VERIFICATION.txt
-          grep -F "versionCode='8'" APK-VERIFICATION.txt
-      - name: Publish Android Full 0.1.4 overlay test prerelease
+          grep -F "versionCode='9'" APK-VERIFICATION.txt
+      - name: Publish signed overlay recovery prerelease
         run: |
           set -euo pipefail
           cd deliver
-          TAG="android-full-v0.1.4-preview.5"
+          TAG="android-full-v0.1.5-preview.6"
           cat > RELEASE-NOTES.md <<'NOTES'
-          # Desktop Melee Android Full 0.1.4 - system overlay test preview 5
+          # Android Full 0.1.5 - Overlay recovery and diagnostic preview
 
-          This test release targets the previous issue where the game would open only with overlay mode disabled. It is not yet verified on the Samsung Flip 3.
+          A test update for Odin / Samsung Android launchers that showed the native disc picker over Home and left the overlay difficult to dismiss. Hardware verification is still required.
 
-          - Switches the Android game presentation to a system overlay window path.
-          - Adjusts overlay window input focus/touch behavior and watch-mode opacity.
-          - Includes the native Android Full Melee engine and the built-in updater.
-          - Uses the same package name (`com.desktopmelee.android`) and signing certificate as the earlier Android Full builds.
-          - Android versionCode 8; intended as an in-place update from 0.1.3 (versionCode 7).
+          - Disc picker remains foreground and interactive until Play starts.
+          - The game switches to its system overlay and moves behind Home only after the native launcher exits.
+          - An independent red STOP OVERLAY button exits the overlay and game process without rebooting Android.
+          - The setup screen has Copy overlay / crash diagnostics. After a failed launch, reopen the app, copy the report and paste it into ChatGPT. Events survive restarts; accessible logcat includes native renderer messages where available.
+          - Overlay is temporarily hidden while an Android file picker is open.
+          - Signed with the same Android Full key as 0.1.4; package com.desktopmelee.android; versionCode 9.
 
-          **Test:** Grant Android's Display over other apps permission, start the app in overlay mode, and check whether the Home screen remains visible behind the fighters. Also check non-overlay mode for visible fighters/HUD. Please report any crash message or screenshot.
-
-          This is a preview, not confirmation that the overlay problem is resolved. No copyrighted disc or game data is included.
-
-          Verified source: `a1eb3704da6da121834c1d3abd6d0a0ed80bd830`
-          Successful build: https://github.com/Bluesguitartravis-droid/desktop-melee/actions/runs/40972691952
+          The APK was taken from successful Actions run 40996146761, source commit 85929a52524308eb8f19e3a7145734e2ff6fff23. This preview has not yet been validated on the actual Odin hardware. No game disc data is included.
           NOTES
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; refusing to replace an existing release."
-            exit 1
+            echo "Android Full 0.1.5 is already published."
+            exit 0
           fi
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target android-full-desktop --prerelease --latest=false \
-            --title "Desktop Melee Android Full 0.1.4 - overlay test preview 5" \
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target android-full-desktop \
+            --prerelease --latest=false \
+            --title "Desktop Melee Android Full 0.1.5 - overlay recovery preview 6" \
             --notes-file RELEASE-NOTES.md \
-            Desktop-Melee-Android-Full-0.1.4.apk APK-VERIFICATION.txt SHA256SUMS
+            Desktop-Melee-Android-Full-0.1.5.apk APK-VERIFICATION.txt SHA256SUMS
