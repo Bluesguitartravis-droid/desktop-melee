@@ -9,13 +9,13 @@ experimental wallpaper terrain.
 
 | Platform | Current build | Download | Status |
 |---|---:|---|---|
-| **Windows x64** | **0.1.10** | **[Windows installer](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/desktop-v0.1.10/Desktop-Melee-Setup-x64.exe)** | Desktop overlay, 2-4 fighters, selectable display, all-monitor span |
+| **Windows x64** | **0.1.11** | **[Windows installer](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/desktop-v0.1.11/Desktop-Melee-Setup-x64.exe)** | Ground-collision recovery, 50-150% fighter scaling, compact UI, multi-monitor support |
 | **Linux x86_64** | **0.1.7 Linux preview 1** | **[Linux AppImage](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/desktop-v0.1.7-linux.1/Desktop-Melee-Linux-x86_64.AppImage)** | Native Linux preview; desktop overlay requires composited X11 |
-| **Android ARM64** | **0.1.3 updater target preview 4** | **[Android APK](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/android-full-v0.1.3-preview.4/Desktop-Melee-Android-Full-0.1.3.apk)** | Full native engine + Home-screen overlay + built-in updater |
+| **Android ARM64** | **0.1.6 preview 7** | **[Android APK](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/android-full-v0.1.6-preview.7/Desktop-Melee-Android-Full-0.1.6.apk)** | Native engine, Home overlay, emergency stop, copyable diagnostics |
 
 **[View all releases, portable packages, source archives and checksums](https://github.com/Bluesguitartravis-droid/desktop-melee/releases)**
 
-> **Android update note:** Android Full 0.1.2 introduced the built-in updater; 0.1.3 is the first newer target release for testing it. Both use the same stable package/signing identity. If you still have 0.0.1 or 0.0.2, uninstall that old build once first.
+> **Android update note:** Android Full 0.1.6 is a test preview with bottom-of-screen arena placement, overlay transparency changes, an emergency stop control and diagnostics. Existing 0.1.3+ Full builds can update in place. If you still have a 0.0.1 or 0.0.2 prototype, uninstall that old build first.
 
 ## Download and play on Windows
 
@@ -38,6 +38,11 @@ team battles are not added in this release. Single-display mode keeps wallpaper
 terrain. All-monitor mode spans the Windows virtual desktop and keeps window
 platforms across the span; wallpaper terrain is disabled there for now. Stop
 the match before changing display selection or span mode.
+
+Windows 0.1.11 adds **Fighter size** in Graphics (50-150%, camera zoom only; hitboxes
+and physics stay unchanged) and **Interface size** in Launcher (50-150%). New
+settings default to 80% interface size; existing saved preferences are kept.
+The new floor recovery remains subject to testing in live desktop matches.
 
 The single installer includes the engine, DLLs and resources and installs them
 together for your Windows account. No administrator access is required. An
