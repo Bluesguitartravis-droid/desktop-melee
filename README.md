@@ -9,7 +9,7 @@ experimental wallpaper terrain.
 
 | Platform | Current build | Download | Status |
 |---|---:|---|---|
-| **Windows x64** | **0.1.14** | **[Windows installer](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/desktop-v0.1.14/Desktop-Melee-Setup-x64.exe)** | Character visual-quality presets, HD texture-pack support/status/reload, live model/HUD sizing, ground-collision recovery |
+| **Windows x64** | **0.1.15** | **[Windows installer](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/desktop-v0.1.15/Desktop-Melee-Setup-x64.exe)** | HUD visibility toggle, character visual-quality presets, HD texture-pack support/status/reload, live model/HUD sizing, ground-collision recovery |
 | **Linux x86_64** | **0.1.7 Linux preview 1** | **[Linux AppImage](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/desktop-v0.1.7-linux.1/Desktop-Melee-Linux-x86_64.AppImage)** | Native Linux preview; desktop overlay requires composited X11 |
 | **Android ARM64** | **0.1.6 preview 7** | **[Android APK](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/android-full-v0.1.6-preview.7/Desktop-Melee-Android-Full-0.1.6.apk)** | Native engine, Home overlay, emergency stop, copyable diagnostics |
 
@@ -242,3 +242,8 @@ Desktop mode now exposes **Character visual quality** presets:
 **HD character textures** use Aurora's replacement-texture system. Put compatible PNG/DDS replacements in Desktop Melee's `textures` folder, then use **Reload HD textures**. The settings UI reports how many replacements are active. No copyrighted HD texture pack or higher-poly character mesh is bundled with the application.
 
 This is a visual-quality layer only; character physics, skeleton animation, collision and hitboxes remain Melee's originals. Higher-poly mesh replacement is a separate future feature.
+
+
+### HUD visibility (Windows 0.1.15)
+
+Graphics now includes **HUD visibility**. Set it to **Off** to completely skip the in-match HUD draw (damage percentages, stocks, timer and related HUD graphics) while leaving fighters, stage rendering and gameplay untouched. The setting applies live from the F1 menu and is saved for future launches.
