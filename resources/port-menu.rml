@@ -73,7 +73,8 @@
               </span>
               <button id="hud-mode" class="value">Classic (4:3)</button>
             </div>
-            <div class="row no-mobile" data-desc="Fighter display size in the next desktop match. Collision stays unchanged."><span class="name">Fighter size</span><div class="slider-control"><input type="range" class="range" id="fighter-scale" min="50" max="150" step="5" value="100" /><span id="fighter-scale-val" class="slider-value">100%</span></div></div>
+            <div class="row" data-desc="Scale the visible character models in Desktop mode. Collision stays unchanged."><span class="name">Character model size</span><div class="slider-control"><input type="range" class="range" id="fighter-scale" min="50" max="150" step="5" value="100" /><span id="fighter-scale-val" class="slider-value">100%</span></div></div>
+            <div class="row" data-desc="Scale damage percentages, stocks and other in-match HUD graphics."><span class="name">HUD size</span><div class="slider-control"><input type="range" class="range" id="hud-scale" min="50" max="150" step="5" value="100" /><span id="hud-scale-val" class="slider-value">100%</span></div></div>
             <div class="row" data-desc="Anti-aliasing RESTART">
               <span class="name">Anti-aliasing <span class="badge">RESTART</span>
               </span>
