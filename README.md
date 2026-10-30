@@ -9,7 +9,7 @@ experimental wallpaper terrain.
 
 | Platform | Current build | Download | Status |
 |---|---:|---|---|
-| **Windows x64** | **0.1.12** | **[Windows installer](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/desktop-v0.1.12/Desktop-Melee-Setup-x64.exe)** | Ground-collision recovery, character-model size, HUD size, compact UI, multi-monitor support |
+| **Windows x64** | **0.1.13** | **[Windows installer](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/desktop-v0.1.13/Desktop-Melee-Setup-x64.exe)** | Live character-model size, live HUD size, ground-collision recovery, compact UI, multi-monitor support |
 | **Linux x86_64** | **0.1.7 Linux preview 1** | **[Linux AppImage](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/desktop-v0.1.7-linux.1/Desktop-Melee-Linux-x86_64.AppImage)** | Native Linux preview; desktop overlay requires composited X11 |
 | **Android ARM64** | **0.1.6 preview 7** | **[Android APK](https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/android-full-v0.1.6-preview.7/Desktop-Melee-Android-Full-0.1.6.apk)** | Native engine, Home overlay, emergency stop, copyable diagnostics |
 
@@ -39,7 +39,7 @@ terrain. All-monitor mode spans the Windows virtual desktop and keeps window
 platforms across the span; wallpaper terrain is disabled there for now. Stop
 the match before changing display selection or span mode.
 
-Windows 0.1.12 exposes **Character model size** and **HUD size** in Graphics,
+Windows 0.1.13 makes **Character model size** and **HUD size** apply live in Desktop mode. Both remain in Graphics,
 each adjustable from 50-150%. Character size changes the visible fighter model
 without moving collision, physics, platforms or blast zones; HUD size changes the
 damage/stock display independently. **Interface size** remains separately adjustable
