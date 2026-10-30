@@ -64,7 +64,7 @@
         <div id="page-graphics" class="page">
           <div class="row no-mobile" data-desc="Windowed or fullscreen."><span class="name">Display mode</span><button id="display" class="value">Display</button></div>
           <div class="row" data-desc="Synchronise presentation with your display."><span class="name">Vertical sync</span><button id="sync" class="value">VSync</button></div>
-          <div class="row" data-desc="How sharp the game renders. Auto follows the window size."><span class="name">Internal resolution</span>
+          <div class="row" data-desc="Internal render quality. It changes sharpness/performance, not the on-screen size of the Desktop overlay."><span class="name">Internal resolution</span>
             <div class="slider-control"><input type="range" class="range" id="resolution" min="0" max="10" step="1" value="0" /><span id="resolution-val" class="slider-value">Auto</span></div></div>
           <div class="row" data-desc="Applies to fights. Menus and cutscenes keep the original aspect."><span class="name">Aspect ratio</span><button id="aspect" class="value">Original (73:60)</button></div>
           <div class="row" data-desc="Classic keeps 4:3 safe margins; Wide anchors damage and stocks to the 16:9 edges."><span class="name">HUD layout</span><button id="hud-mode" class="value">Classic (4:3)</button></div>
