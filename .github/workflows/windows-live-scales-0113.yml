@@ -1,0 +1,40 @@
+name: Windows 0.1.13 live scale validation
+on:
+  push:
+    branches: [windows-live-scales-0113]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-and-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Install compiler and Windows packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config python3 git zip cabextract curl bzip2 xz-utils mingw-w64 nsis
+          sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+          sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+      - name: Run native regressions
+        run: |
+          set -e
+          bash tools/test_desktop_game.sh
+          bash tools/test_desktop_monitor.sh
+          bash tools/test_desktop_collision.sh
+          bash tools/test_desktop_fighter.sh
+          bash tools/test_desktop_update.sh
+          python3 tools/test_desktop_release.py
+      - name: Build Windows package
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: '4'
+        run: bash tools/build_desktop_windows.sh
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: Desktop-Melee-Windows-0.1.13-validation
+          if-no-files-found: error
+          compression-level: 0
+          path: |
+            dist/Desktop-Melee-Setup-x64.exe
+            dist/Desktop-Melee-Windows-x64.zip
