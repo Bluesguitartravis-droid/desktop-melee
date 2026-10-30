@@ -68,6 +68,7 @@
             <div class="slider-control"><input type="range" class="range" id="resolution" min="0" max="10" step="1" value="0" /><span id="resolution-val" class="slider-value">Auto</span></div></div>
           <div class="row" data-desc="Applies to fights. Menus and cutscenes keep the original aspect."><span class="name">Aspect ratio</span><button id="aspect" class="value">Original (73:60)</button></div>
           <div class="row" data-desc="Classic keeps 4:3 safe margins; Wide anchors damage and stocks to the 16:9 edges."><span class="name">HUD layout</span><button id="hud-mode" class="value">Classic (4:3)</button></div>
+          <div class="row no-mobile" data-desc="Fighter display size for the next desktop match; physics and hitboxes stay unchanged."><span class="name">Fighter size</span><div class="slider-control"><input type="range" class="range" id="fighter-scale" min="50" max="150" step="5" value="100" /><span id="fighter-scale-val" class="slider-value">100%</span></div></div>
           <div class="row" data-desc="Smooth polygon edges with multisampling. Applies after a restart."><span class="name">Anti-aliasing <span class="badge">RESTART</span></span><button id="aa" class="value">Anti-aliasing</button></div>
           <div class="row" data-desc="Sharper textures seen at an angle, where the texture allows it. Applies after a restart."><span class="name">Anisotropic filtering <span class="badge">RESTART</span></span><button id="filter" class="value">Filtering</button></div>
           <div class="row" data-desc="A filter over the finished frame. Off presents it as rendered."><span class="name">Post-processing</span><button id="filter-mode" class="value">Off</button></div>
@@ -111,7 +112,7 @@
         </div>
         <div id="page-launcher" class="page">
           <div class="row" data-desc="The size of these menus."><span class="name">Interface size</span>
-            <div class="slider-control"><input type="range" class="range" id="scale" min="75" max="150" step="25" value="100" /><span id="scale-val" class="slider-value">100%</span></div></div>
+            <div class="slider-control"><input type="range" class="range" id="scale" min="50" max="150" step="10" value="80" /><span id="scale-val" class="slider-value">100%</span></div></div>
           <div class="row" data-desc="Look for a new release on GitHub at each start."><span class="name">Check for updates</span><button id="check-updates" class="value">On</button></div>
           <div class="row" id="check-row" data-desc="Look for a new release now."><span class="name">Updates <span id="check-status" class="detail">Melee-PC is up to date.</span></span><button id="check-now" class="value action">Check now</button></div>
           <div class="row" data-desc="Join the community Discord server in your browser."><span class="name">Discord community</span><button id="settings-discord" class="value action">Join Discord</button></div>
