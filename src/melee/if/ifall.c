@@ -40,6 +40,35 @@ static struct ifAll_804A0FD8_t {
 } ifAll_804A0FD8;
 
 static u8 hidden; // HUD hidden bool
+#ifdef TARGET_PC
+static int pc_hud_projection_type;
+static float pc_hud_proj_a, pc_hud_proj_b, pc_hud_proj_c, pc_hud_proj_d;
+
+static void ifAll_ApplyPCHudScale(HSD_CObj* cobj)
+{
+    float scale;
+    if (!pc_desktop_requested() || cobj == NULL) {
+        return;
+    }
+    scale = pc_get_hud_scale();
+    if (!(scale >= 0.5f && scale <= 1.5f)) {
+        scale = 1.0f;
+    }
+    switch (pc_hud_projection_type) {
+    case PROJ_ORTHO:
+        HSD_CObjSetOrtho(cobj, pc_hud_proj_a / scale, pc_hud_proj_b / scale,
+                        pc_hud_proj_c / scale, pc_hud_proj_d / scale);
+        break;
+    case PROJ_FRUSTUM:
+        HSD_CObjSetFrustum(cobj, pc_hud_proj_a / scale, pc_hud_proj_b / scale,
+                          pc_hud_proj_c / scale, pc_hud_proj_d / scale);
+        break;
+    case PROJ_PERSPECTIVE:
+        HSD_CObjSetPerspective(cobj, pc_hud_proj_a / scale, pc_hud_proj_b);
+        break;
+    }
+}
+#endif
 
 void ifAll_802F3394(void)
 {
@@ -179,6 +208,9 @@ bool ifAll_IsHUDHidden(void)
 static void fn_802F36B8(HSD_GObj* gobj, intptr_t unused)
 {
     if (!ifAll_IsHUDHidden()) {
+#ifdef TARGET_PC
+        ifAll_ApplyPCHudScale(GET_COBJ(gobj));
+#endif
         if (HSD_CObjSetCurrent(GET_COBJ(gobj))) {
             HSD_GObj_80390ED0(gobj, 0x7);
             HSD_CObjEndCurrent();
@@ -241,18 +273,27 @@ static inline HSD_GObj* createCamera(HSD_CObjDesc* desc)
     HSD_GObj* gobj = GObj_Create(0x13, 0x14, 0);
     HSD_CObj* cobj = lb_80013B14(&desc->perspective);
 #ifdef TARGET_PC
-    if (pc_desktop_requested() && HSD_CObjGetProjectionType(cobj) == PROJ_ORTHO) {
-        float top, bottom, left, right;
-        float hud_scale = pc_get_hud_scale();
-        if (!(hud_scale >= 0.5f && hud_scale <= 1.5f)) {
-            hud_scale = 1.0f;
-        }
-        HSD_CObjGetOrtho(cobj, &top, &bottom, &left, &right);
-        /* Expanding the ortho extents makes the entire HUD smaller while
-         * preserving its authored proportions and damage/stock grouping. */
-        HSD_CObjSetOrtho(cobj, top / hud_scale, bottom / hud_scale,
-                        left / hud_scale, right / hud_scale);
+    pc_hud_projection_type = HSD_CObjGetProjectionType(cobj);
+    switch (pc_hud_projection_type) {
+    case PROJ_ORTHO:
+        HSD_CObjGetOrtho(cobj, &pc_hud_proj_a, &pc_hud_proj_b,
+                        &pc_hud_proj_c, &pc_hud_proj_d);
+        break;
+    case PROJ_FRUSTUM:
+        pc_hud_proj_a = cobj->projection_param.frustum.top;
+        pc_hud_proj_b = cobj->projection_param.frustum.bottom;
+        pc_hud_proj_c = cobj->projection_param.frustum.left;
+        pc_hud_proj_d = cobj->projection_param.frustum.right;
+        break;
+    case PROJ_PERSPECTIVE:
+        HSD_CObjGetPerspective(cobj, &pc_hud_proj_a, &pc_hud_proj_b);
+        pc_hud_proj_c = pc_hud_proj_d = 0.0f;
+        break;
+    default:
+        pc_hud_proj_a = pc_hud_proj_b = pc_hud_proj_c = pc_hud_proj_d = 0.0f;
+        break;
     }
+    ifAll_ApplyPCHudScale(cobj);
 #endif
     HSD_GObjObject_80390A70(gobj, HSD_GObj_CameraKind, cobj);
     GObj_SetupGXLinkMax(gobj, fn_802F36B8, 8);
