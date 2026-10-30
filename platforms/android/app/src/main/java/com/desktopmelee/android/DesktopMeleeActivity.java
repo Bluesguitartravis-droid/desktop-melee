@@ -19,6 +19,7 @@ public final class DesktopMeleeActivity extends Activity {
     private SeekBar landscapeMargin, landscapeFloor, portraitMargin, portraitFloor;
     private Spinner players, mode, cpu, stocks;
     private CheckBox homeOverlay;
+    private CheckBox watchTouchPass;
     private CheckBox autoUpdates;
     private TextView updateStatus;
     private AndroidUpdater updater;
@@ -26,6 +27,16 @@ public final class DesktopMeleeActivity extends Activity {
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        // Move installs using the previous default floor to the low-screen arena.
+        // Preserve any deliberately customized floor values.
+        if (!prefs.getBoolean("bottomFloorDefaultsV2", false)) {
+            SharedPreferences.Editor migration = prefs.edit();
+            if (prefs.getInt("landscapeFloor", 88) == 88)
+                migration.putInt("landscapeFloor", 93);
+            if (prefs.getInt("portraitFloor", 82) == 82)
+                migration.putInt("portraitFloor", 93);
+            migration.putBoolean("bottomFloorDefaultsV2", true).apply();
+        }
         OverlayDiagnostics.record(this, "Setup opened after app startup");
         final android.content.Context appContext = getApplicationContext();
         final Thread.UncaughtExceptionHandler defaultHandler =
@@ -57,15 +68,20 @@ public final class DesktopMeleeActivity extends Activity {
         root.addView(orientation);
 
         landscapeMargin = slider(root, "Landscape horizontal margin", "landscapeMargin", 0, 20, 3);
-        landscapeFloor = slider(root, "Landscape floor height", "landscapeFloor", 60, 96, 88);
+        landscapeFloor = slider(root, "Landscape floor position (% from top)", "landscapeFloor", 60, 98, 93);
         portraitMargin = slider(root, "Portrait horizontal margin", "portraitMargin", 0, 25, 6);
-        portraitFloor = slider(root, "Portrait floor height", "portraitFloor", 55, 96, 82);
+        portraitFloor = slider(root, "Portrait floor position (% from top)", "portraitFloor", 55, 98, 93);
 
         root.addView(text("Presentation", 18));
         homeOverlay = new CheckBox(this);
         homeOverlay.setText("Home-screen overlay (transparent)");
         homeOverlay.setChecked(prefs.getBoolean("homeOverlay", true));
         root.addView(homeOverlay);
+        watchTouchPass = new CheckBox(this);
+        watchTouchPass.setText("Watch mode: allow touches through to Home (dims fighters)");
+        watchTouchPass.setChecked(prefs.getBoolean("watchTouchPass", false));
+        root.addView(watchTouchPass);
+        root.addView(text("For solid, fully colored fighters leave touch-through off. Android 12+ may block Home taps under a full-opacity overlay; enable this only if you need Home touch passthrough.", 13));
         root.addView(text("The disc picker stays foreground. During gameplay, the red STOP OVERLAY control closes a stuck overlay without restarting the device.", 13));
 
         root.addView(text("Updates", 18));
@@ -195,7 +211,8 @@ public final class DesktopMeleeActivity extends Activity {
             .putInt("portraitFloor",portraitFloor.getProgress()+55)
             .putInt("players",fighterCount).putInt("watch",watch)
             .putInt("cpu",cpuLevel).putInt("stocks",stockCount)
-            .putBoolean("homeOverlay", homeOverlay.isChecked()).apply();
+            .putBoolean("homeOverlay", homeOverlay.isChecked())
+            .putBoolean("watchTouchPass", watchTouchPass.isChecked()).apply();
 
         Intent i = new Intent(this, dev.melee.MeleeActivity.class);
         i.putExtra(EXTRA_ORIENTATION, orientationMode);
