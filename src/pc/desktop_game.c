@@ -37,6 +37,7 @@ static AuroraDesktopGeometry geometry;
 static float view_left, view_right, view_top, view_bottom;
 static float floor_left, floor_right;
 static float desktop_world_height = 240.0f;
+static float desktop_character_scale = 1.0f;
 static unsigned simulation_ticks;
 static int desktop_roster_size = 2;
 
@@ -122,6 +123,11 @@ int pc_desktop_player_count(void)
     return desktop_roster_size;
 }
 
+float pc_desktop_character_scale(void)
+{
+    return pc_desktop_requested() ? desktop_character_scale : 1.0f;
+}
+
 void pc_desktop_configure_match(StartMeleeData* start)
 {
     static const char* character_keys[] = { "MELEE_DESKTOP_P1", "MELEE_DESKTOP_P2", "MELEE_DESKTOP_P3", "MELEE_DESKTOP_P4" };
@@ -197,12 +203,11 @@ void pc_desktop_begin_match(StartMeleeData* start)
         pc_log_line("desktop: no usable monitor/taskbar geometry; keeping the normal window");
         return;
     }
-    /* A fixed 240 world-unit screen height keeps the fighters useful desktop
-     * size without changing their models, movement speed or hitboxes. */
-    /* Zoom the WORLD camera rather than the character model: physics, collision,
-     * stage geometry, movement and hitboxes all keep their original sizes. */
-    desktop_world_height = 240.0f * 100.0f /
-        option_int("MELEE_DESKTOP_FIGHTER_SIZE", 100, 50, 150);
+    /* Keep arena/world geometry fixed. Character size is now an actual
+     * visual model scale so changing it cannot move the desktop floor. */
+    desktop_world_height = 240.0f;
+    desktop_character_scale =
+        option_int("MELEE_DESKTOP_CHARACTER_SIZE", 100, 50, 150) / 100.0f;
     units_per_pixel = desktop_world_height / geometry.height;
     view_left = -0.5f * geometry.width * units_per_pixel;
     view_right = -view_left;
@@ -923,6 +928,7 @@ void pc_desktop_end_match(void)
     collision_ready = false;
     match_armed = false;
     simulation_ticks = 0;
+    desktop_character_scale = 1.0f;
     window_pool_prepared = false;
     window_pool_loaded = false;
     platform_tick = 0;
