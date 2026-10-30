@@ -33,7 +33,8 @@ struct Preferences {
 
     bool vsync = true;
     bool fullscreen = false;
-    float scale = 1.0f;
+    float scale = 0.8f;
+    float fighter_scale = 1.0f; // Desktop display zoom; collision and movement stay native.
 #if defined(__ANDROID__)
     float render_scale = 1.0f, volume = 1.0f;
     int msaa = 1, anisotropy = 1;
