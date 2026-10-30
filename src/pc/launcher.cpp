@@ -663,8 +663,10 @@ class Launcher final : public Rml::EventListener {
             prefs.music_volume = std::clamp(prefs.music_volume + direction * 0.05f, 0.0f, 1.0f);
         else if (id == "sfx-volume")
             prefs.sfx_volume = std::clamp(prefs.sfx_volume + direction * 0.05f, 0.0f, 1.0f);
-        else if (id == "resolution")
+        else if (id == "resolution") {
             prefs.render_scale = std::clamp(prefs.render_scale + direction, 0.0f, 10.0f);
+            VISetFrameBufferScale(prefs.render_scale);
+        }
         else if (id == "fighter-scale")
             prefs.fighter_scale = std::clamp(prefs.fighter_scale + direction * 0.05f, 0.5f, 1.5f);
         else if (id == "hud-scale")
@@ -791,6 +793,7 @@ class Launcher final : public Rml::EventListener {
             element("sync")->Focus();
         } else if (id == "resolution") {
             prefs.render_scale = prefs.render_scale >= 10 ? 0 : int(prefs.render_scale) + 1;
+            VISetFrameBufferScale(prefs.render_scale);
             save();
             refresh_settings();
             element("resolution")->Focus();
@@ -1021,6 +1024,7 @@ public:
             } else if (id == "resolution") {
                 prefs.render_scale = std::clamp(
                     float(int(event.GetParameter<float>("value", 0.0f) + 0.5f)), 0.0f, 10.0f);
+                VISetFrameBufferScale(prefs.render_scale);
                 text("resolution-val", resolution_name(prefs.render_scale));
                 notice();
             } else if (id == "fighter-scale") {
