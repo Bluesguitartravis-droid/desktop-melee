@@ -383,8 +383,12 @@ Preferences load_preferences(const std::filesystem::path& path) {
                 prefs.anisotropy = value;
         } else if (key == "scale") {
             float value;
-            if (row >> value && std::isfinite(value) && value >= 0.75f && value <= 1.5f)
+            if (row >> value && std::isfinite(value) && value >= 0.5f && value <= 1.5f)
                 prefs.scale = value;
+        } else if (key == "fighter_scale") {
+            float value;
+            if (row >> value && std::isfinite(value) && value >= 0.5f && value <= 1.5f)
+                prefs.fighter_scale = value;
         } else if (key == "check_updates" || key == "custom_textures" || key == "unlock_all" ||
                    key == "frozen_stadium" || key == "free_camera" || key == "ucf" ||
                    key == "reverb")
