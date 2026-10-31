@@ -24,7 +24,8 @@ std::string entry(std::string_view version, bool draft = false, bool prerelease 
     std::string value = "{\"tag_name\":\"" + tag + "\",\"draft\":" + (draft ? "true" : "false") +
         ",\"prerelease\":" + (prerelease ? "true" : "false") + ",\"html_url\":\"" + page + "\",\"assets\":[";
     if (asset) value += "{\"name\":\"" + std::string(asset_name) +
-        "\",\"state\":\"uploaded\",\"size\":28000000,\"browser_download_url\":\"" + asset_url + "\"}";
+        "\",\"state\":\"uploaded\",\"size\":28000000,\"digest\":\"sha256:" +
+        std::string(64, 'a') + "\",\"browser_download_url\":\"" + asset_url + "\"}";
     return value + "]}";
 }
 release::Selection select(std::string_view json, std::string_view current = "0.1.6") {
@@ -58,8 +59,9 @@ int main() {
         const auto installer = select("[" + installer_entry + "]");
         const auto expected = project + "/releases/download/desktop-v0.1.7/" + std::string(release::kWindowsInstaller);
         check(installer.status == release::Status::Available && installer.direct_download &&
-              installer.installer && installer.url == expected,
-              "single downloadable installer is recognized by exact name and URL");
+              installer.installer && installer.url == expected &&
+              installer.sha256 == std::string(64, 'a') && installer.bytes == 28000000,
+              "single downloadable installer is recognized with exact URL, size and digest");
         const auto portable_entry = entry("0.1.7");
         const auto asset_json = [](const std::string& value) {
             const auto start = value.find("\"assets\":[") + std::string_view("\"assets\":[").size();
@@ -88,6 +90,13 @@ int main() {
         check(!no_valid_asset.direct_download && !no_valid_asset.installer &&
               no_valid_asset.url == project + "/releases/tag/desktop-v0.1.7",
               "wrong-repository installer alone falls back to the release page");
+        auto bad_digest = installer_entry;
+        replace_once(bad_digest, "\"digest\":\"sha256:" + std::string(64, 'a') + "\"",
+                     "\"digest\":\"sha256:not-a-valid-digest\"");
+        const auto digest_rejected = select("[" + bad_digest + "]");
+        check(!digest_rejected.direct_download && !digest_rejected.installer &&
+              digest_rejected.sha256.empty() && digest_rejected.bytes == 0,
+              "installer without a valid SHA-256 digest cannot be installed in-app");
         for (const auto& url : {"https://github.com.evil.example/Bluesguitartravis-droid/desktop-melee/releases/download/desktop-v0.1.7/Desktop-Melee-Setup-x64.exe",
                                 "http://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/desktop-v0.1.7/Desktop-Melee-Setup-x64.exe",
                                 "https://github.com/Bluesguitartravis-droid/desktop-melee/releases/download/desktop-v0.1.7/evil.exe"}) {
