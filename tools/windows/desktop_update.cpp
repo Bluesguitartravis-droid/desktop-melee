@@ -502,11 +502,6 @@ struct UpdateInstaller::Shared {
     ~Shared() { if (cancel_event) CloseHandle(cancel_event); }
 };
 
-struct InstallThreadContext {
-    std::shared_ptr<UpdateInstaller::Shared> shared;
-    UpdateResult update;
-};
-
 UpdateInstaller::UpdateInstaller() : shared_(std::make_shared<Shared>()) {}
 UpdateInstaller::~UpdateInstaller() { cancel(); }
 
@@ -524,7 +519,11 @@ bool UpdateInstaller::start(const UpdateResult& update) {
         shared_->result.detail = "This release cannot be installed from inside Desktop Melee.";
         return false;
     }
-    auto* context = new (std::nothrow) InstallThreadContext{shared_, update};
+    struct ThreadContext {
+        std::shared_ptr<Shared> shared;
+        UpdateResult update;
+    };
+    auto* context = new (std::nothrow) ThreadContext{shared_, update};
     if (!context) {
         shared_->result.status = InstallStatus::Failed;
         shared_->result.detail = "Could not start the update downloader.";
@@ -536,7 +535,7 @@ bool UpdateInstaller::start(const UpdateResult& update) {
     shared_->result.detail = "Downloading and verifying the update...";
     shared_->running = true;
     const uintptr_t thread = _beginthreadex(nullptr, 0, [](void* raw) -> unsigned {
-        std::unique_ptr<InstallThreadContext> context(static_cast<InstallThreadContext*>(raw));
+        std::unique_ptr<ThreadContext> context(static_cast<ThreadContext*>(raw));
         run(context->shared, std::move(context->update));
         return 0;
     }, context, 0, nullptr);
