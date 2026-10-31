@@ -22,6 +22,7 @@ constexpr int kBaseWidth = 700;
 constexpr int kBaseHeight = 690;
 constexpr UINT_PTR kMatchTimer = 1;
 constexpr UINT_PTR kUpdateTimer = 2;
+constexpr UINT_PTR kInstallTimer = 3;
 #define DESKTOP_WIDEN_INNER(value) L##value
 #define DESKTOP_WIDEN(value) DESKTOP_WIDEN_INNER(value)
 constexpr wchar_t kVersion[] = DESKTOP_WIDEN(DESKTOP_MELEE_VERSION);
@@ -60,6 +61,8 @@ struct State {
     DWORD process_id{};
     desktop_update::UpdateChecker updates;
     desktop_update::UpdateResult update_result;
+    desktop_update::UpdateInstaller installer;
+    desktop_update::InstallResult install_result;
 } app;
 constexpr int character_controls[] = {IdP1,IdP2,IdP3,IdP4};
 constexpr int costume_controls[] = {IdCostume1,IdCostume2,IdCostume3,IdCostume4};
@@ -99,7 +102,10 @@ void poll_updates() {
     if (result.status == UpdateStatus::Available) {
         const auto message = L"Version " + from_utf8(result.version) + L" is available. You have " + kVersion + L".";
         label(IdUpdateStatus, message.c_str());
-        label(IdUpdate, result.direct_download ? L"Download update" : L"View release");
+        const bool installable = result.direct_download && result.installer &&
+            result.bytes > 0 && result.sha256.size() == 64;
+        label(IdUpdate, installable ? L"Install update" : L"In-app update unavailable");
+        EnableWindow(child(IdUpdate), installable ? TRUE : FALSE);
     } else {
         const auto message = result.status == UpdateStatus::UpToDate
             ? std::wstring(L"You're up to date (version ") + kVersion + L")."
@@ -114,26 +120,65 @@ void check_updates() {
     poll_updates();
 }
 
+void poll_install() {
+    using desktop_update::InstallStatus;
+    app.install_result = app.installer.poll();
+    if (app.install_result.status == InstallStatus::Downloading) {
+        label(IdUpdateStatus, from_utf8(app.install_result.detail).c_str());
+        label(IdUpdate, L"Installing...");
+        EnableWindow(child(IdUpdate), FALSE);
+        return;
+    }
+    KillTimer(app.window, kInstallTimer);
+    if (app.install_result.status == InstallStatus::Failed) {
+        label(IdUpdateStatus, from_utf8(app.install_result.detail).c_str());
+        label(IdUpdate, L"Retry update");
+        EnableWindow(child(IdUpdate), TRUE);
+        return;
+    }
+    if (app.install_result.status != InstallStatus::Ready) return;
+
+    const auto installer_path = app.install_result.installer_path.wstring();
+    const auto parameters = L"/S /AUTOUPDATE=1 /PARENTPID=" + std::to_wstring(GetCurrentProcessId());
+    SHELLEXECUTEINFOW execute{};
+    execute.cbSize = sizeof(execute);
+    execute.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC;
+    execute.hwnd = app.window;
+    execute.lpVerb = L"open";
+    execute.lpFile = installer_path.c_str();
+    execute.lpParameters = parameters.c_str();
+    execute.nShow = SW_HIDE;
+    if (!ShellExecuteExW(&execute)) {
+        label(IdUpdateStatus, L"Could not start the verified update installer. Try again.");
+        label(IdUpdate, L"Retry update");
+        EnableWindow(child(IdUpdate), TRUE);
+        return;
+    }
+    if (execute.hProcess) CloseHandle(execute.hProcess);
+    label(IdUpdateStatus, L"Update verified. Desktop Melee will restart after installation.");
+    app.updates.cancel();
+    app.installer.cancel();
+    DestroyWindow(app.window);
+}
+
 void update_action() {
     if (app.update_result.status != desktop_update::UpdateStatus::Available) {
         check_updates();
         return;
     }
-    // The update module only returns URLs from this project's GitHub releases.
-    // Open the Windows installer/package in the browser. Installation is explicit.
-    const auto url = from_utf8(app.update_result.url);
-    const auto result = reinterpret_cast<INT_PTR>(ShellExecuteW(app.window, L"open",
-        url.c_str(), nullptr, nullptr, SW_SHOWNORMAL));
-    const wchar_t* message = L"Could not open your browser. Try the update button again.";
-    if (result > 32) {
-        if (app.update_result.installer)
-            message = L"Download opened. Close Desktop Melee, then run the installer.";
-        else if (app.update_result.direct_download)
-            message = L"Stop the match, then extract the new portable ZIP to a new folder.";
-        else
-            message = L"Release page opened. Choose the Windows installer to update.";
+    if (app.process) {
+        label(IdUpdateStatus, L"Stop the current match before installing an update.");
+        return;
     }
-    label(IdUpdateStatus, message);
+    if (!app.installer.start(app.update_result)) {
+        app.install_result = app.installer.poll();
+        label(IdUpdateStatus, from_utf8(app.install_result.detail).c_str());
+        return;
+    }
+    label(IdUpdateStatus, L"Downloading and verifying the update...");
+    label(IdUpdate, L"Installing...");
+    EnableWindow(child(IdUpdate), FALSE);
+    SetTimer(app.window, kInstallTimer, 250, nullptr);
 }
 
 std::wstring text(int id) {
@@ -610,6 +655,7 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpar
     case WM_TIMER:
         if (wparam == kMatchTimer) poll();
         else if (wparam == kUpdateTimer) poll_updates();
+        else if (wparam == kInstallTimer) poll_install();
         return 0;
     case WM_DISPLAYCHANGE:
         if (!app.process) refresh_monitors(chosen_monitor_id());
@@ -633,11 +679,13 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpar
     }
     case WM_CLOSE:
         app.updates.cancel();
+        app.installer.cancel();
         stop();
         DestroyWindow(hwnd);
         return 0;
     case WM_DESTROY:
         app.updates.cancel();
+        app.installer.cancel();
         PostQuitMessage(0);
         return 0;
     default:
