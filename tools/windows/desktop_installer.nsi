@@ -13,6 +13,7 @@ SetOverwrite on
 
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
+!include "FileFunc.nsh"
 !include "WinVer.nsh"
 !include "x64.nsh"
 !include "${DESKTOP_PAYLOAD_INCLUDE}"
@@ -33,6 +34,8 @@ VIAddVersionKey "LegalCopyright" "Desktop Melee contributors; see bundled licens
 Var SetupMutex
 Var CheckedPath
 Var FileHandle
+Var AutoUpdate
+Var ParentPid
 
 !define APP_KEY "Software\DesktopMelee"
 !define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\DesktopMelee"
@@ -74,6 +77,25 @@ Function ${Prefix}.onInit
         Abort
     ${EndIf}
 !if "${Prefix}" == ""
+    ; In-app updates launch setup just before the old launcher exits. Wait for
+    ; that exact parent process before probing or replacing any app files.
+    StrCpy $AutoUpdate ""
+    StrCpy $ParentPid ""
+    ${GetParameters} $9
+    ${GetOptions} $9 "/AUTOUPDATE=" $AutoUpdate
+    ${GetOptions} $9 "/PARENTPID=" $ParentPid
+    ${If} $AutoUpdate == "1"
+    ${AndIf} $ParentPid != ""
+        System::Call 'kernel32::OpenProcess(i 0x00100000, i 0, i $ParentPid) p .r2'
+        ${If} $2 != 0
+            System::Call 'kernel32::WaitForSingleObject(p r2, i 30000) i .r3'
+            System::Call 'kernel32::CloseHandle(p r2)'
+            ${If} $3 == 258
+                SetErrorLevel 3
+                Abort "Desktop Melee did not close in time for the in-app update."
+            ${EndIf}
+        ${EndIf}
+    ${EndIf}
     ; Reuse the recorded location on upgrades; no administrator path is used.
     StrCpy $INSTDIR "$LOCALAPPDATA\Programs\DesktopMelee"
     ReadRegStr $0 HKCU "${APP_KEY}" "InstallDir"
@@ -97,6 +119,12 @@ FunctionEnd
 !macroend
 !insertmacro SetupInit ""
 !insertmacro SetupInit "un"
+
+Function .onInstSuccess
+    ${If} $AutoUpdate == "1"
+        Exec '"$INSTDIR\DesktopMelee.exe"'
+    ${EndIf}
+FunctionEnd
 
 ; OPEN_EXISTING + GENERIC_WRITE + no sharing probes image/file locks without
 ; truncating or writing a byte. This catches both a running launcher and an
