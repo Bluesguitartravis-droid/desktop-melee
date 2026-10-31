@@ -5,7 +5,7 @@ on:
     paths-ignore: [".github/workflows/android-full-publish.yml"]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -14,7 +14,7 @@ jobs:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
       ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/26.3.11579264
-      MELEE_VERSION: 0.1.6-android-true-alpha-floor
+      MELEE_VERSION: 0.1.7-android-overlay-stability
       MELEE_UNSIGNED_RELEASE: '1'
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -41,16 +41,41 @@ jobs:
           gh release download android-prototype-signing-v1 --repo "$GITHUB_REPOSITORY"             --pattern prototype-signing.pk8 --pattern prototype-signing.x509.pem --dir signing
           ZIPALIGN="$ANDROID_HOME/build-tools/34.0.0/zipalign"
           APKSIGNER="$ANDROID_HOME/build-tools/34.0.0/apksigner"
-          "$ZIPALIGN" -f -p 4 dist/Melee-Android-arm64.apk dist/signed/Desktop-Melee-Android-Full-0.1.6.apk
-          "$APKSIGNER" sign --key signing/prototype-signing.pk8 --cert signing/prototype-signing.x509.pem             dist/signed/Desktop-Melee-Android-Full-0.1.6.apk
-          "$APKSIGNER" verify --verbose --print-certs dist/signed/Desktop-Melee-Android-Full-0.1.6.apk             > dist/signed/APK-VERIFICATION.txt
-          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging dist/signed/Desktop-Melee-Android-Full-0.1.6.apk             >> dist/signed/APK-VERIFICATION.txt
+          "$ZIPALIGN" -f -p 4 dist/Melee-Android-arm64.apk dist/signed/Desktop-Melee-Android-Full-0.1.7.apk
+          "$APKSIGNER" sign --key signing/prototype-signing.pk8 --cert signing/prototype-signing.x509.pem             dist/signed/Desktop-Melee-Android-Full-0.1.7.apk
+          "$APKSIGNER" verify --verbose --print-certs dist/signed/Desktop-Melee-Android-Full-0.1.7.apk             > dist/signed/APK-VERIFICATION.txt
+          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging dist/signed/Desktop-Melee-Android-Full-0.1.7.apk             >> dist/signed/APK-VERIFICATION.txt
           grep -F "package: name='com.desktopmelee.android'" dist/signed/APK-VERIFICATION.txt
-          grep -F "versionCode='10'" dist/signed/APK-VERIFICATION.txt
-          sha256sum dist/signed/Desktop-Melee-Android-Full-0.1.6.apk > dist/signed/SHA256SUMS
+          grep -F "versionCode='11'" dist/signed/APK-VERIFICATION.txt
+          sha256sum dist/signed/Desktop-Melee-Android-Full-0.1.7.apk > dist/signed/SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
-          name: Desktop-Melee-Android-Full-0.1.6
+          name: Desktop-Melee-Android-Full-0.1.7
           compression-level: 0
           if-no-files-found: error
           path: dist/signed/
+
+      - name: Publish Android Full 0.1.7 stability prerelease
+        run: |
+          set -euo pipefail
+          cd dist/signed
+          TAG="android-full-v0.1.7-preview.8"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; leaving it unchanged."
+            exit 0
+          fi
+          cat > RELEASE-NOTES.md <<NOTES
+          # Desktop Melee Android Full 0.1.7 - overlay match-start stability
+
+          Stability build targeting the Android crash reported immediately when a Desktop match starts.
+
+          - Rolls back the experimental 0.1.6 renderer-level forced transparent EFB clears to the 0.1.5 behavior.
+          - Keeps the Android system-overlay window path, solid fighter window alpha, 93% floor default, SDL-surface arena sizing, emergency STOP OVERLAY control, and crash diagnostics.
+          - Keeps transparent Android surface composition available without forcing every EFB clear/resolve through the new 0.1.6 path.
+          - Package remains com.desktopmelee.android and uses the same signing certificate; versionCode 11.
+
+          This is a focused regression test build. No game disc data is included.
+
+          Source commit: $GITHUB_SHA
+          NOTES
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA"             --prerelease --latest=false             --title "Desktop Melee Android Full 0.1.7 - overlay stability preview 8"             --notes-file RELEASE-NOTES.md             Desktop-Melee-Android-Full-0.1.7.apk APK-VERIFICATION.txt SHA256SUMS

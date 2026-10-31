@@ -587,8 +587,7 @@ void begin_recording(FramePacket& packet, size_t frameSlot) {
   pass.label = pass_label("EFB");
   set_efb_targets(pass);
   pass.colorAttachments[SceneColorAttachmentIndex].clearValue =
-      (desktop::active() || webgpu::android_transparent_surface())
-          ? Vec4<float>{0.f, 0.f, 0.f, 0.f} : gx::g_gxState.clearColor;
+      desktop::active() ? Vec4<float>{0.f, 0.f, 0.f, 0.f} : gx::g_gxState.clearColor;
   pass.clearDepthValue = gx::clear_depth_value();
   if (g_preserveFrameBuffer) {
     for (uint32_t i = 0; i < pass.colorAttachmentCount; ++i) {
@@ -860,8 +859,7 @@ PipelineRef pipeline_ref(const clear::PipelineConfig& config) {
 void resolve_pass_into(TextureHandle texture, ClipRect rect, bool clearColor, bool clearAlpha, bool clearDepth,
                        Vec4<float> clearColorValue, float clearDepthValue, GXTexFmt resolveFormat,
                        GXPixelFmt sourceFormat) {
-  if ((desktop::active() || webgpu::android_transparent_surface()) &&
-      !g_recorder.inOffscreen && clearColor) {
+  if (desktop::active() && !g_recorder.inOffscreen && clearColor) {
     clearAlpha = true;
     clearColorValue = {0.f, 0.f, 0.f, 0.f};
   }
