@@ -436,7 +436,7 @@ if (WIN32)
         DESKTOP_MELEE_VERSION_PATCH=${DESKTOP_MELEE_VERSION_PATCH}
         DESKTOP_MELEE_GITHUB_OWNER="Bluesguitartravis-droid"
         DESKTOP_MELEE_GITHUB_REPO="desktop-melee")
-    target_link_libraries(DesktopMelee PRIVATE comctl32 comdlg32 shell32 user32 gdi32 winhttp)
+    target_link_libraries(DesktopMelee PRIVATE comctl32 comdlg32 shell32 user32 gdi32 winhttp bcrypt)
     if (MINGW)
         target_link_options(DesktopMelee PRIVATE -municode -static -static-libstdc++ -static-libgcc)
     endif ()
