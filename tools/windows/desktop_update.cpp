@@ -4,15 +4,19 @@
 
 #include <windows.h>
 #include <winhttp.h>
+#include <bcrypt.h>
 #include <process.h>
 
 #include <array>
+#include <filesystem>
 #include <mutex>
 #include <new>
+#include <optional>
 #include <utility>
+#include <vector>
 
 #ifndef DESKTOP_MELEE_VERSION
-#define DESKTOP_MELEE_VERSION "0.1.6"
+#define DESKTOP_MELEE_VERSION "0.1.17"
 #endif
 #ifndef DESKTOP_MELEE_GITHUB_OWNER
 #define DESKTOP_MELEE_GITHUB_OWNER "Bluesguitartravis-droid"
@@ -234,12 +238,194 @@ UpdateResult fetch_release(HANDLE cancel) {
     } else {
         result.status = UpdateStatus::Available;
         result.url = selection.url;
+        result.sha256 = selection.sha256;
+        result.bytes = selection.bytes;
         result.direct_download = selection.direct_download;
         result.installer = selection.installer;
         result.detail = "Desktop Melee " + result.version + " is available.";
     }
     return result;
 }
+
+std::optional<std::string> sha256_file(const std::filesystem::path& path) {
+    BCRYPT_ALG_HANDLE algorithm = nullptr;
+    BCRYPT_HASH_HANDLE hash = nullptr;
+    DWORD object_bytes = 0, digest_bytes = 0, size = 0;
+    if (BCryptOpenAlgorithmProvider(&algorithm, BCRYPT_SHA256_ALGORITHM, nullptr, 0) != 0)
+        return {};
+    auto close_algorithm = [&]() { BCryptCloseAlgorithmProvider(algorithm, 0); };
+    if (BCryptGetProperty(algorithm, BCRYPT_OBJECT_LENGTH,
+            reinterpret_cast<PUCHAR>(&object_bytes), sizeof(object_bytes), &size, 0) != 0 ||
+        BCryptGetProperty(algorithm, BCRYPT_HASH_LENGTH,
+            reinterpret_cast<PUCHAR>(&digest_bytes), sizeof(digest_bytes), &size, 0) != 0 ||
+        digest_bytes != 32) {
+        close_algorithm();
+        return {};
+    }
+    std::vector<unsigned char> object(object_bytes), digest(digest_bytes);
+    if (BCryptCreateHash(algorithm, &hash, object.data(), object_bytes, nullptr, 0, 0) != 0) {
+        close_algorithm();
+        return {};
+    }
+    HANDLE file = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+    if (file == INVALID_HANDLE_VALUE) {
+        BCryptDestroyHash(hash);
+        close_algorithm();
+        return {};
+    }
+    std::array<unsigned char, 64 * 1024> buffer{};
+    DWORD bytes = 0;
+    bool ok = true;
+    while (ReadFile(file, buffer.data(), static_cast<DWORD>(buffer.size()), &bytes, nullptr) && bytes) {
+        if (BCryptHashData(hash, buffer.data(), bytes, 0) != 0) { ok = false; break; }
+    }
+    if (bytes != 0) ok = false;
+    CloseHandle(file);
+    if (ok && BCryptFinishHash(hash, digest.data(), digest_bytes, 0) != 0) ok = false;
+    BCryptDestroyHash(hash);
+    close_algorithm();
+    if (!ok) return {};
+    constexpr char hex[] = "0123456789abcdef";
+    std::string text;
+    text.reserve(64);
+    for (unsigned char value : digest) {
+        text.push_back(hex[value >> 4]);
+        text.push_back(hex[value & 15]);
+    }
+    return text;
+}
+
+InstallResult download_installer(const UpdateResult& update, HANDLE cancel) {
+    InstallResult result;
+    result.status = InstallStatus::Failed;
+    if (!update.installer || !update.direct_download || update.sha256.size() != 64 ||
+        update.bytes == 0 || update.bytes > 256ull * 1024ull * 1024ull) {
+        result.detail = "This release does not provide a verifiable in-app Windows installer.";
+        return result;
+    }
+    if (cancelled(cancel)) {
+        result.detail = "Update download cancelled.";
+        return result;
+    }
+
+    const std::wstring url = widen_ascii(update.url);
+    URL_COMPONENTS parts{};
+    parts.dwStructSize = sizeof(parts);
+    parts.dwHostNameLength = static_cast<DWORD>(-1);
+    parts.dwUrlPathLength = static_cast<DWORD>(-1);
+    parts.dwExtraInfoLength = static_cast<DWORD>(-1);
+    if (!WinHttpCrackUrl(url.c_str(), 0, 0, &parts) ||
+        parts.nScheme != INTERNET_SCHEME_HTTPS || !parts.lpszHostName || !parts.dwHostNameLength) {
+        result.detail = "The update download URL is invalid.";
+        return result;
+    }
+    std::wstring host(parts.lpszHostName, parts.dwHostNameLength);
+    std::wstring resource(parts.lpszUrlPath, parts.dwUrlPathLength);
+    if (parts.lpszExtraInfo && parts.dwExtraInfoLength)
+        resource.append(parts.lpszExtraInfo, parts.dwExtraInfoLength);
+
+    InternetHandle session(WinHttpOpen(L"DesktopMelee-InAppUpdater/1",
+        WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0));
+    if (!session.value || !WinHttpSetTimeouts(session.value, 3000, 5000, 5000, 15000)) {
+        result.detail = "Could not start the update download.";
+        return result;
+    }
+    InternetHandle connection(WinHttpConnect(session.value, host.c_str(), parts.nPort, 0));
+    if (!connection.value) {
+        result.detail = "Could not connect to the update server.";
+        return result;
+    }
+    InternetHandle request(WinHttpOpenRequest(connection.value, L"GET", resource.c_str(), nullptr,
+        WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE));
+    if (!request.value) {
+        result.detail = "Could not start the update download.";
+        return result;
+    }
+    DWORD disabled = WINHTTP_DISABLE_COOKIES | WINHTTP_DISABLE_AUTHENTICATION;
+    if (!WinHttpSetOption(request.value, WINHTTP_OPTION_DISABLE_FEATURE, &disabled, sizeof(disabled))) {
+        result.detail = "Could not secure the update request.";
+        return result;
+    }
+    constexpr wchar_t headers[] = L"Accept: application/octet-stream\r\n";
+    if (!WinHttpSendRequest(request.value, headers, static_cast<DWORD>(-1),
+            WINHTTP_NO_REQUEST_DATA, 0, 0, 0) ||
+        !WinHttpReceiveResponse(request.value, nullptr)) {
+        result.detail = "Could not download the update. Check your connection and try again.";
+        return result;
+    }
+    DWORD status = 0, size = sizeof(status);
+    if (!WinHttpQueryHeaders(request.value, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+            WINHTTP_HEADER_NAME_BY_INDEX, &status, &size, WINHTTP_NO_HEADER_INDEX) || status != 200) {
+        result.detail = "The update server did not return the installer.";
+        return result;
+    }
+
+    std::array<wchar_t, 32768> temp{};
+    const DWORD temp_length = GetTempPathW(static_cast<DWORD>(temp.size()), temp.data());
+    if (!temp_length || temp_length >= temp.size()) {
+        result.detail = "Windows could not create an update folder.";
+        return result;
+    }
+    std::filesystem::path folder = std::filesystem::path(temp.data()) / L"DesktopMelee" / L"Updates";
+    std::error_code filesystem_error;
+    std::filesystem::create_directories(folder, filesystem_error);
+    if (filesystem_error) {
+        result.detail = "Windows could not create an update folder.";
+        return result;
+    }
+    const auto path = folder / (L"Desktop-Melee-Setup-x64-" + widen_ascii(update.version) + L".exe");
+    HANDLE output = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+        FILE_ATTRIBUTE_TEMPORARY | FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (output == INVALID_HANDLE_VALUE) {
+        result.detail = "Windows could not save the update installer.";
+        return result;
+    }
+
+    std::array<unsigned char, 64 * 1024> buffer{};
+    uint64_t total = 0;
+    bool ok = true;
+    for (;;) {
+        if (cancelled(cancel)) { ok = false; result.detail = "Update download cancelled."; break; }
+        DWORD read = 0;
+        if (!WinHttpReadData(request.value, buffer.data(), static_cast<DWORD>(buffer.size()), &read)) {
+            ok = false; result.detail = "The update download was interrupted."; break;
+        }
+        if (read == 0) break;
+        total += read;
+        if (total > update.bytes) {
+            ok = false; result.detail = "The update download was larger than expected."; break;
+        }
+        DWORD written = 0;
+        if (!WriteFile(output, buffer.data(), read, &written, nullptr) || written != read) {
+            ok = false; result.detail = "Windows could not save the complete update."; break;
+        }
+    }
+    if (ok && total != update.bytes) {
+        ok = false;
+        result.detail = "The update download was incomplete.";
+    }
+    if (ok && !FlushFileBuffers(output)) {
+        ok = false;
+        result.detail = "Windows could not finish saving the update.";
+    }
+    CloseHandle(output);
+    if (!ok) {
+        DeleteFileW(path.c_str());
+        return result;
+    }
+    const auto digest = sha256_file(path);
+    if (!digest || *digest != update.sha256) {
+        DeleteFileW(path.c_str());
+        result.detail = "Update verification failed; the downloaded installer was deleted.";
+        return result;
+    }
+    result.status = InstallStatus::Ready;
+    result.installer_path = path;
+    result.detail = "Update downloaded and verified.";
+    return result;
+}
+
 
 } // namespace
 
@@ -305,6 +491,85 @@ UpdateResult UpdateChecker::poll() const {
 }
 
 void UpdateChecker::cancel() noexcept {
+    if (shared_ && shared_->cancel_event) SetEvent(shared_->cancel_event);
+}
+
+struct UpdateInstaller::Shared {
+    mutable std::mutex mutex;
+    InstallResult result;
+    bool running = false;
+    HANDLE cancel_event = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    ~Shared() { if (cancel_event) CloseHandle(cancel_event); }
+};
+
+struct InstallThreadContext {
+    std::shared_ptr<UpdateInstaller::Shared> shared;
+    UpdateResult update;
+};
+
+UpdateInstaller::UpdateInstaller() : shared_(std::make_shared<Shared>()) {}
+UpdateInstaller::~UpdateInstaller() { cancel(); }
+
+bool UpdateInstaller::start(const UpdateResult& update) {
+    std::lock_guard lock(shared_->mutex);
+    if (shared_->running) return false;
+    if (!shared_->cancel_event) {
+        shared_->result.status = InstallStatus::Failed;
+        shared_->result.detail = "Could not start the update downloader.";
+        return false;
+    }
+    if (update.status != UpdateStatus::Available || !update.installer || !update.direct_download ||
+        update.sha256.size() != 64 || update.bytes == 0) {
+        shared_->result.status = InstallStatus::Failed;
+        shared_->result.detail = "This release cannot be installed from inside Desktop Melee.";
+        return false;
+    }
+    auto* context = new (std::nothrow) InstallThreadContext{shared_, update};
+    if (!context) {
+        shared_->result.status = InstallStatus::Failed;
+        shared_->result.detail = "Could not start the update downloader.";
+        return false;
+    }
+    ResetEvent(shared_->cancel_event);
+    shared_->result = {};
+    shared_->result.status = InstallStatus::Downloading;
+    shared_->result.detail = "Downloading and verifying the update...";
+    shared_->running = true;
+    const uintptr_t thread = _beginthreadex(nullptr, 0, [](void* raw) -> unsigned {
+        std::unique_ptr<InstallThreadContext> context(static_cast<InstallThreadContext*>(raw));
+        run(context->shared, std::move(context->update));
+        return 0;
+    }, context, 0, nullptr);
+    if (!thread) {
+        delete context;
+        shared_->running = false;
+        shared_->result.status = InstallStatus::Failed;
+        shared_->result.detail = "Could not start the update downloader.";
+        return false;
+    }
+    CloseHandle(reinterpret_cast<HANDLE>(thread));
+    return true;
+}
+
+void UpdateInstaller::run(std::shared_ptr<Shared> shared, UpdateResult update) noexcept {
+    InstallResult result;
+    try {
+        result = download_installer(update, shared->cancel_event);
+    } catch (...) {
+        result.status = InstallStatus::Failed;
+        result.detail = "Could not finish downloading the update.";
+    }
+    std::lock_guard lock(shared->mutex);
+    shared->result = std::move(result);
+    shared->running = false;
+}
+
+InstallResult UpdateInstaller::poll() const {
+    std::lock_guard lock(shared_->mutex);
+    return shared_->result;
+}
+
+void UpdateInstaller::cancel() noexcept {
     if (shared_ && shared_->cancel_event) SetEvent(shared_->cancel_event);
 }
 
