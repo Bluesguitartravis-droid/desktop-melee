@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #pragma once
 
+#include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <string>
 
@@ -12,6 +14,8 @@ struct UpdateResult {
     UpdateStatus status = UpdateStatus::Unavailable;
     std::string version;
     std::string url;
+    std::string sha256;
+    uint64_t bytes = 0;
     std::string detail = "Updates have not been checked yet.";
     bool direct_download = false;
     bool installer = false;
@@ -35,6 +39,31 @@ public:
 private:
     struct Shared;
     static void run(std::shared_ptr<Shared> shared) noexcept;
+    std::shared_ptr<Shared> shared_;
+};
+
+
+enum class InstallStatus { Idle, Downloading, Ready, Failed };
+
+struct InstallResult {
+    InstallStatus status = InstallStatus::Idle;
+    std::filesystem::path installer_path;
+    std::string detail = "No update is being installed.";
+};
+
+class UpdateInstaller {
+public:
+    UpdateInstaller();
+    ~UpdateInstaller();
+    UpdateInstaller(const UpdateInstaller&) = delete;
+    UpdateInstaller& operator=(const UpdateInstaller&) = delete;
+    bool start(const UpdateResult& update);
+    InstallResult poll() const;
+    void cancel() noexcept;
+
+private:
+    struct Shared;
+    static void run(std::shared_ptr<Shared> shared, UpdateResult update) noexcept;
     std::shared_ptr<Shared> shared_;
 };
 
