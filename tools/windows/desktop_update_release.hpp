@@ -263,12 +263,27 @@ inline bool matching_url(std::string_view actual, std::string_view owner,
     return actual.substr(prefix.size()) == suffix;
 }
 
+inline std::optional<std::string> sha256_digest(std::string_view value) {
+    constexpr std::string_view prefix = "sha256:";
+    if (!value.starts_with(prefix) || value.size() != prefix.size() + 64) return {};
+    std::string digest;
+    digest.reserve(64);
+    for (char c : value.substr(prefix.size())) {
+        if (c >= '0' && c <= '9') digest.push_back(c);
+        else if (c >= 'a' && c <= 'f') digest.push_back(c);
+        else if (c >= 'A' && c <= 'F') digest.push_back(static_cast<char>(c + ('a' - 'A')));
+        else return {};
+    }
+    return digest;
+}
+
 } // namespace detail
 
 enum class Status { Invalid, NoCompatibleRelease, UpToDate, Available };
 struct Selection {
     Status status = Status::Invalid;
-    std::string version, url;
+    std::string version, url, sha256;
+    uint64_t bytes = 0;
     bool direct_download = false;
     bool installer = false;
 };
@@ -305,6 +320,8 @@ inline Selection select(std::string_view json, std::string_view current,
                      std::string(repository) + "/" + page_suffix;
         result.direct_download = false;
         result.installer = false;
+        result.sha256.clear();
+        result.bytes = 0;
         const auto* assets = document.member(item, "assets");
         if (assets && assets->kind == Kind::Array) {
             for (const auto asset_id : assets->elements) {
@@ -313,10 +330,14 @@ inline Selection select(std::string_view json, std::string_view current,
                 const auto* state = document.member(asset, "state");
                 const auto* url = document.member(asset, "browser_download_url");
                 const auto* size = document.member(asset, "size");
+                const auto* digest = document.member(asset, "digest");
+                const auto sha256 = digest && digest->kind == Kind::String
+                    ? detail::sha256_digest(digest->text) : std::nullopt;
                 if (!name || name->kind != Kind::String ||
                     (name->text != kWindowsInstaller && name->text != kWindowsAsset) ||
                     !state || state->kind != Kind::String || state->text != "uploaded" ||
-                    !url || url->kind != Kind::String || !size || size->kind != Kind::Number) continue;
+                    !url || url->kind != Kind::String || !size || size->kind != Kind::Number ||
+                    !sha256) continue;
                 uint64_t bytes = 0;
                 const auto number = std::from_chars(size->text.data(), size->text.data() + size->text.size(), bytes);
                 const std::string suffix = "releases/download/" + tag->text + "/" + name->text;
@@ -324,6 +345,8 @@ inline Selection select(std::string_view json, std::string_view current,
                     bytes == 0 || !detail::matching_url(url->text, owner, repository, suffix)) continue;
                 result.url = "https://github.com/" + std::string(owner) + "/" +
                              std::string(repository) + "/" + suffix;
+                result.sha256 = *sha256;
+                result.bytes = bytes;
                 result.direct_download = true;
                 result.installer = name->text == kWindowsInstaller;
                 /* Releases may list the portable ZIP first. Keep looking for
